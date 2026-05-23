@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>贪食蛇 - NEO SNAKE AI</title>
+<link rel="stylesheet" href="snake.css">
+</head>
+<body>
+
+<div class="bg-particles" id="bgParticles"></div>
+
+<div class="container">
+  <h1 class="title">NEO SNAKE AI</h1>
+
+  <div style="position:relative;">
+    <div class="game-wrapper">
+      <canvas id="gameCanvas"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="overlay-title" id="overlayTitle">GAME OVER</div>
+        <div class="overlay-score" id="overlayMsg">得分 <span id="overlayScore">0</span></div>
+        <button class="btn" id="restartBtn">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="speed-indicator" id="speedIndicator"></div>
+
+  <div class="info-bar">
+    <div class="info-item">
+      <span class="info-label">分数</span>
+      <span class="info-value" id="score">0</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">最高分</span>
+      <span class="info-value best" id="bestScore">0</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">等级</span>
+      <span class="info-value" id="level">1</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">长度</span>
+      <span class="info-value" id="length">4</span>
+    </div>
+    <div class="info-item" id="aiStatusItem" style="display:none;">
+      <span class="info-label">AI状态</span>
+      <span class="info-value ai" id="aiStatus">--</span>
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn" id="autoBtn" title="空格键切换">🤖 AI 自动</button>
+    <button class="btn" id="speedBtn">⚡ 速度 x1</button>
+  </div>
+</div>
+
+<script>
+// ==================== AI 路径查找引擎 ====================
+class SnakeAI {
+  constructor(cols, rows) {
+    this.cols = cols;
+    this.rows = rows;
+    this.visited = new Uint8Array(cols * rows);
+    this.parent = new Int32Array(cols * rows);
+    this.queue = new Int32Array(cols * rows);
+    this.dist = new Int32Array(cols * rows);
+    // 方向向量
+    this.DIRS = [
+      { dx: 0, dy: -1, name: 'up' },    // 0
+      { dx: 0, dy: 1, name: 'down' },   // 1
+      { dx: -1, dy: 0, name: 'left' },  // 2
+      { dx: 1, dy: 0, name: 'right' },  // 3
+    ];
+  }
+
+  idx(x, y) { return y * this.cols + x; }
+
+  inBounds(x, y) { return x >= 0 && x < this.cols && y >= 0 && y < this.rows; }
+
+  // BFS: 返回从 (sx,sy) 到 (ex,ey) 的最短路径（不含起点，含终点）
+  // blocked: Set of "x,y" strings 表示不可通过的格子
+  // 返回路径数组 [{x,y},...] 或 null
+  findPath(sx, sy, ex, ey, blockedSet, maxLen = Infinity) {
+    if (sx === ex && sy === ey) return [];
+    const targetIdx = this.idx(ex, ey);
+
+    this.visited.fill(0);
+    this.parent.fill(-1);
+    this.dist.fill(0);
+
+    let head = 0, tail = 0;
+    const startIdx = this.idx(sx, sy);
+    this.queue[tail++] = startIdx;
+    this.visited[startIdx] = 1;
+    this.dist[startIdx] = 0;
+
+    let found = false;
+    while (head < tail) {
+      const cur = this.queue[head++];
+      const cx = cur % this.cols;
+      const cy = (cur / this.cols) | 0;
+
+      if (cur === targetIdx) { found = true; break; }
+      if (this.dist[cur] >= maxLen) continue;
+
+      for (let d = 0; d < 4; d++) {
+        const nx = cx + this.DIRS[d].dx;
+        const ny = cy + this.DIRS[d].dy;
+        if (!this.inBounds(nx, ny)) continue;
+        const ni = this.idx(nx, ny);
+        if (this.visited[ni]) continue;
+        if (blockedSet.has(`${nx},${ny}`)) continue;
+        // 终点即使被blocked也要能到达（在安全检测时我们会解除尾部）
+        if (nx === ex && ny === ey) {
+          // 允许到达终点
+        }
+        this.visited[ni] = 1;
+        this.parent[ni] = cur;
+        this.dist[ni] = this.dist[cur] + 1;
+        this.queue[tail++] = ni;
+      }
+    }
+
+    if (!found) return null;
+
+    // 回溯路径
+    const path = [];
+    let cur = targetIdx;
+    while (cur !== startIdx) {
+      const px = cur % this.cols;
+      const py = (cur / this.cols) | 0;
+      path.push({ x: px, y: py });
+      cur = this.parent[cur];
+      if (cur < 0) return null; // 安全检查
+    }
+    path.reverse();
+    return path;
+  }
+
+  // 从蛇头到食物的安全路径：模拟吃完后能否到达尾部
+  findSafePathToFood(head, food, snake, occupiedSet) {
+    // 首先找最短路径到食物
+    const pathToFood = this.findPath(head.x, head.y, food.x, food.y, occupiedSet);
+    if (!pathToFood) return null;
+
+    // 虚拟蛇：模拟沿着路径吃完食物后的状态
+    const virtSnake = snake.map(s => ({ ...s }));
+
+    // 模拟蛇沿着路径移动（最后一步吃到食物，身体变长）
+    for (let i = 0; i < pathToFood.length; i++) {
+      const step = pathToFood[i];
+      virtSnake.unshift({ x: step.x, y: step.y });
+      // 最后一步（吃到食物）：不缩尾
+      if (i < pathToFood.length - 1) {
+        virtSnake.pop();
+      }
+    }
+
+    // 检查吃完后蛇能否到达自己的尾部
+    const virtHead = virtSnake[0];
+    const virtTail = virtSnake[virtSnake.length - 1];
+    const virtOccupied = new Set(virtSnake.map(s => `${s.x},${s.y}`));
+    // 移除尾部（蛇可以跟随尾部走）
+    virtOccupied.delete(`${virtTail.x},${virtTail.y}`);
+
+    const pathToTail = this.findPath(virtHead.x, virtHead.y, virtTail.x, virtTail.y, virtOccupied);
+
+    if (pathToTail && pathToTail.length > 0) return pathToFood;
+
+    // 如果蛇足够短(小于总格数的60%)，找不到尾部路径说明会死，尝试别的方法
+    if (snake.length < this.cols * this.rows * 0.6) return null;
+
+    // 蛇很长时，尽力而为——走最长路径
+    return pathToFood;
+  }
+
+  // 生存模式：找最长安全路径（用于没有安全食物路径时跟随尾部）
+  findLongestSafePath(head, snake, occupiedSet) {
+    const tail = snake[snake.length - 1];
+    const virtOccupied = new Set(occupiedSet);
+    virtOccupied.delete(`${tail.x},${tail.y}`); // 尾部会移动
+
+    return this.findPath(head.x, head.y, tail.x, tail.y, virtOccupied, 100);
+  }
+
+  // 主决策：返回下一步方向 {x, y}
+  decide(head, food, bonusFood, snake) {
+    const occupiedSet = new Set(snake.map(s => `${s.x},${s.y}`));
+
+    let target = null;
+    let path = null;
+
+    // 1. 优先吃奖励食物
+    if (bonusFood) {
+      path = this.findSafePathToFood(head, bonusFood, snake, occupiedSet);
+      if (path) target = bonusFood;
+    }
+
+    // 2. 尝试吃普通食物
+    if (!path) {
+      path = this.findSafePathToFood(head, food, snake, occupiedSet);
+      if (path) target = food;
+    }
+
+    // 3. 没有安全食物路径 → 生存模式：跟随尾部
+    if (!path) {
+      path = this.findLongestSafePath(head, snake, occupiedSet);
+    }
+
+    // 4. 如果还是没有路径 → 绝望模式：随便往安全方向走
+    if (!path || path.length === 0) {
+      for (const d of this.DIRS) {
+        const nx = head.x + d.dx;
+        const ny = head.y + d.dy;
+        if (this.inBounds(nx, ny) && !occupiedSet.has(`${nx},${ny}`)) {
+          return { x: d.dx, y: d.dy, target: null, pathLen: 0 };
+        }
+      }
+      return null; // 无处可去
+    }
+
+    const next = path[0];
+    return {
+      x: next.x - head.x,
+      y: next.y - head.y,
+      target: target,
+      pathLen: path.length,
+    };
+  }
+}
+
+// ==================== 游戏主类 ====================
+class NeoSnake {
+  constructor() {
+    this.canvas = document.getElementById('gameCanvas');
+    this.ctx = this.canvas.getContext('2d');
+
+    this.tileSize = 20;
+    this.cols = 30;
+    this.rows = 25;
+    this.canvas.width = this.cols * this.tileSize;
+    this.canvas.height = this.rows * this.tileSize;
+
+    this.snake = [];
+    this.food = null;
+    this.bonusFood = null;
+    this.bonusTimer = 0;
+    this.particles = [];
+    this.direction = { x: 1, y: 0 };
+    this.nextDirection = { x: 1, y: 0 };
+    this.score = 0;
+    this.bestScore = parseInt(localStorage.getItem('neoSneakAiBest') || '0');
+    this.level = 1;
+    this.speed = 100;
+    this.gameLoop = null;
+    this.renderLoop = null;
+    this.isRunning = false;
+    this.isGameOver = false;
+    this.trailPositions = [];
+
+    // AI 相关
+    this.ai = new SnakeAI(this.cols, this.rows);
+    this.autoMode = false;
+    this.autoRestart = true;
+    this.speedMultiplier = 1;
+    this.aiDecision = null; // { target, pathLen }
+    this.aiPath = []; // 可视化的路径格子
+    this.occupancyHeat = 0; // 占用率百分比
+    this.moveCount = 0;
+
+    this.gridPattern = this.createGridPattern();
+
+    document.getElementById('bestScore').textContent = this.bestScore;
+    this.setupControls();
+    this.initGame();
+  }
+
+  createGridPattern() {
+    const canvas = document.createElement('canvas');
+    canvas.width = this.tileSize;
+    canvas.height = this.tileSize;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+    ctx.strokeRect(0, 0, this.tileSize, this.tileSize);
+    return this.ctx.createPattern(canvas, 'repeat');
+  }
+
+  setupControls() {
+    // 键盘：方向键手动 + 空格切换AI + 数字键调速
+    document.addEventListener('keydown', (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+        this.toggleAutoMode();
+        return;
+      }
+      if (e.key === '1') { this.setSpeed(1); return; }
+      if (e.key === '2') { this.setSpeed(2); return; }
+      if (e.key === '3') { this.setSpeed(4); return; }
+      if (e.key === '4') { this.setSpeed(8); return; }
+      if (e.key === '5') { this.setSpeed(20); return; }
+      if (e.key === '6') { this.setSpeed(100); return; }
+
+      if (this.autoMode || !this.isRunning) return;
+      const keyMap = {
+        ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 },
+        ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
+        w: { x: 0, y: -1 }, W: { x: 0, y: -1 },
+        s: { x: 0, y: 1 }, S: { x: 0, y: 1 },
+        a: { x: -1, y: 0 }, A: { x: -1, y: 0 },
+        d: { x: 1, y: 0 }, D: { x: 1, y: 0 },
+      };
+      const dir = keyMap[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      this.setDirection(dir);
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', () => this.restart());
+    document.getElementById('autoBtn').addEventListener('click', () => this.toggleAutoMode());
+    document.getElementById('speedBtn').addEventListener('click', () => {
+      const speeds = [1, 2, 4, 8, 20, 100];
+      const idx = speeds.indexOf(this.speedMultiplier);
+      this.setSpeed(speeds[(idx + 1) % speeds.length]);
+    });
+  }
+
+  toggleAutoMode() {
+    this.autoMode = !this.autoMode;
+    const btn = document.getElementById('autoBtn');
+    const statusItem = document.getElementById('aiStatusItem');
+
+    if (this.autoMode) {
+      btn.textContent = '🤖 AI 运行中';
+      btn.classList.add('ai-active');
+      statusItem.style.display = 'flex';
+      this.autoRestart = true;
+      // 如果已经结束，自动重启
+      if (this.isGameOver) {
+        this.restart();
+      }
+      // AI 模式下加速渲染
+      this.applySpeed();
+    } else {
+      btn.textContent = '🤖 AI 自动';
+      btn.classList.remove('ai-active');
+      statusItem.style.display = 'none';
+      this.speedMultiplier = 1;
+      this.applySpeed();
+    }
+  }
+
+  setSpeed(mult) {
+    this.speedMultiplier = mult;
+    const btn = document.getElementById('speedBtn');
+    btn.textContent = `⚡ 速度 x${mult}`;
+    if (this.autoMode) this.applySpeed();
+  }
+
+  applySpeed() {
+    if (!this.isRunning) return;
+    clearInterval(this.gameLoop);
+    const effectiveSpeed = this.autoMode
+      ? Math.max(15, Math.floor(this.speed / this.speedMultiplier))
+      : this.speed;
+    this.gameLoop = setInterval(() => this.gameTick(), effectiveSpeed);
+    document.getElementById('speedIndicator').textContent =
+      this.autoMode ? `⚡ 自动模式 · 间隔 ${effectiveSpeed}ms · 按 1-5 调速` : '';
+  }
+
+  setDirection(dir) {
+    if (dir.x + this.direction.x === 0 && dir.y + this.direction.y === 0) return;
+    this.nextDirection = dir;
+  }
+
+  initGame() {
+    const startX = Math.floor(this.cols / 2);
+    const startY = Math.floor(this.rows / 2);
+    this.snake = [];
+    for (let i = 0; i < 4; i++) {
+      this.snake.push({ x: startX - i, y: startY });
+    }
+    this.direction = { x: 1, y: 0 };
+    this.nextDirection = { x: 1, y: 0 };
+    this.score = 0;
+    this.level = 1;
+    this.speed = 100;
+    this.particles = [];
+    this.bonusFood = null;
+    this.bonusTimer = 0;
+    this.trailPositions = [];
+    this.aiDecision = null;
+    this.aiPath = [];
+    this.moveCount = 0;
+    this.spawnFood();
+    this.updateUI();
+    document.getElementById('overlay').classList.remove('active');
+  }
+
+  spawnFood() {
+    const occupied = new Set(this.snake.map(s => `${s.x},${s.y}`));
+    if (this.bonusFood) occupied.add(`${this.bonusFood.x},${this.bonusFood.y}`);
+    const free = [];
+    for (let x = 0; x < this.cols; x++) {
+      for (let y = 0; y < this.rows; y++) {
+        if (!occupied.has(`${x},${y}`)) free.push({ x, y });
+      }
+    }
+    if (free.length === 0) { this.gameOver(true); return; }
+
+    // 优先在远离蛇头的区域生成食物（增加难度和观赏性）
+    const head = this.snake[0];
+    const far = free.filter(p => Math.abs(p.x - head.x) + Math.abs(p.y - head.y) > this.cols / 2);
+    const pool = far.length > 5 ? far : free;
+    this.food = pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  spawnBonusFood() {
+    const occupied = new Set(this.snake.map(s => `${s.x},${s.y}`));
+    occupied.add(`${this.food.x},${this.food.y}`);
+    const free = [];
+    for (let x = 0; x < this.cols; x++) {
+      for (let y = 0; y < this.rows; y++) {
+        if (!occupied.has(`${x},${y}`)) free.push({ x, y });
+      }
+    }
+    if (free.length === 0) return;
+    this.bonusFood = free[Math.floor(Math.random() * free.length)];
+    this.bonusTimer = 60;
+  }
+
+  // AI 决策
+  aiThink() {
+    const head = this.snake[0];
+    const result = this.ai.decide(head, this.food, this.bonusFood, this.snake);
+
+    if (!result) {
+      // 无处可去
+      document.getElementById('aiStatus').textContent = '死局';
+      return;
+    }
+
+    this.aiDecision = result;
+    this.setDirection({ x: result.x, y: result.y });
+
+    // 可视化路径
+    if (result.target) {
+      const occupiedSet = new Set(this.snake.map(s => `${s.x},${s.y}`));
+      this.aiPath = this.ai.findPath(
+        head.x + result.x, head.y + result.y,
+        result.target.x, result.target.y, occupiedSet
+      ) || [];
+    } else {
+      this.aiPath = [];
+    }
+
+    // 更新 AI 状态显示
+    const statusEl = document.getElementById('aiStatus');
+    if (result.target === this.bonusFood) {
+      statusEl.textContent = `🎯奖励(${result.pathLen})`;
+      statusEl.className = 'info-value best';
+    } else if (result.target === this.food) {
+      statusEl.textContent = `🍎食物(${result.pathLen})`;
+      statusEl.className = 'info-value ai';
+    } else {
+      statusEl.textContent = `🧭生存(${result.pathLen})`;
+      statusEl.className = 'info-value warn';
+    }
+  }
+
+  gameTick() {
+    if (this.autoMode) {
+      this.aiThink();
+    }
+    this.update();
+    this.draw();
+  }
+
+  update() {
+    this.direction = { ...this.nextDirection };
+    const head = this.snake[0];
+    const newHead = { x: head.x + this.direction.x, y: head.y + this.direction.y };
+
+    // 碰墙
+    if (newHead.x < 0 || newHead.x >= this.cols || newHead.y < 0 || newHead.y >= this.rows) {
+      this.gameOver();
+      return;
+    }
+
+    // 自身碰撞
+    for (const seg of this.snake) {
+      if (seg.x === newHead.x && seg.y === newHead.y) {
+        this.gameOver();
+        return;
+      }
+    }
+
+    this.trailPositions.unshift({ ...this.snake[this.snake.length - 1] });
+    if (this.trailPositions.length > 10) this.trailPositions.pop();
+
+    this.snake.unshift(newHead);
+    this.moveCount++;
+
+    // 吃食物
+    if (newHead.x === this.food.x && newHead.y === this.food.y) {
+      this.score += 10;
+      this.spawnParticles(this.food.x, this.food.y, 0, 240, 255, 10);
+      this.spawnFood();
+      this.aiPath = [];
+      if (!this.bonusFood && Math.random() < 0.12) this.spawnBonusFood();
+    } else if (this.bonusFood && newHead.x === this.bonusFood.x && newHead.y === this.bonusFood.y) {
+      this.score += 50;
+      this.spawnParticles(this.bonusFood.x, this.bonusFood.y, 255, 204, 0, 20);
+      this.bonusFood = null;
+      this.bonusTimer = 0;
+      this.aiPath = [];
+    } else {
+      this.snake.pop();
+    }
+
+    // 奖励食物计时
+    if (this.bonusFood) {
+      this.bonusTimer--;
+      if (this.bonusTimer <= 0) {
+        this.spawnParticles(this.bonusFood.x, this.bonusFood.y, 255, 100, 0, 6);
+        this.bonusFood = null;
+      }
+    }
+
+    // 升级
+    const newLevel = Math.floor(this.score / 100) + 1;
+    if (newLevel > this.level) {
+      this.level = newLevel;
+      this.speed = Math.max(30, 100 - this.level * 5);
+      this.applySpeed();
+    }
+
+    // 更新粒子
+    this.particles = this.particles.filter(p => {
+      p.life -= 0.02;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05;
+      return p.life > 0;
+    });
+
+    // 占用率
+    this.occupancyHeat = (this.snake.length / (this.cols * this.rows)) * 100;
+    this.updateUI();
+  }
+
+  spawnParticles(gx, gy, r, g, b, count) {
+    const cx = gx * this.tileSize + this.tileSize / 2;
+    const cy = gy * this.tileSize + this.tileSize / 2;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const speed = 1.5 + Math.random() * 4;
+      this.particles.push({
+        x: cx, y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 1.5,
+        life: 1, r, g, b,
+        size: 2 + Math.random() * 4,
+      });
+    }
+  }
+
+  draw() {
+    const ctx = this.ctx;
+    const w = this.canvas.width, h = this.canvas.height;
+    const ts = this.tileSize;
+
+    // 背景
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = this.gridPattern;
+    ctx.fillRect(0, 0, w, h);
+
+    // AI 路径可视化
+    if (this.autoMode && this.aiPath.length > 0) {
+      for (let i = 0; i < this.aiPath.length; i++) {
+        const p = this.aiPath[i];
+        const alpha = 0.08 + (1 - i / this.aiPath.length) * 0.12;
+        ctx.fillStyle = `rgba(180, 0, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.roundRect(p.x * ts + 2, p.y * ts + 2, ts - 4, ts - 4, 3);
+        ctx.fill();
+      }
+    }
+
+    // 地图占用率热力边框（蛇很长时边框变红）
+    if (this.occupancyHeat > 50) {
+      const heatAlpha = (this.occupancyHeat - 50) / 50 * 0.3;
+      const wrapper = document.querySelector('.game-wrapper');
+      if (wrapper) {
+        wrapper.style.boxShadow =
+          `0 0 30px rgba(0,240,255,${0.3 - heatAlpha}), 0 0 60px rgba(255,0,102,${heatAlpha})`;
+      }
+    }
+
+    // 轨迹
+    for (let i = 0; i < this.trailPositions.length; i++) {
+      const t = this.trailPositions[i];
+      const alpha = (1 - i / this.trailPositions.length) * 0.12;
+      ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.roundRect(t.x * ts, t.y * ts, ts, ts, 4);
+      ctx.fill();
+    }
+
+    // 奖励食物闪烁光晕
+    if (this.bonusFood && this.bonusTimer < 25) {
+      const pulse = Math.sin(Date.now() / 80) * 0.3 + 0.5;
+      ctx.fillStyle = `rgba(255, 204, 0, ${pulse * 0.35})`;
+      ctx.beginPath();
+      ctx.roundRect(this.bonusFood.x * ts - 5, this.bonusFood.y * ts - 5, ts + 10, ts + 10, 10);
+      ctx.fill();
+    }
+
+    // 普通食物光晕
+    const foodPulse = Math.sin(Date.now() / 300) * 0.15 + 0.25;
+    ctx.fillStyle = `rgba(0, 240, 255, ${foodPulse})`;
+    ctx.beginPath();
+    ctx.roundRect(this.food.x * ts - 4, this.food.y * ts - 4, ts + 8, ts + 8, 8);
+    ctx.fill();
+
+    // AI 目标高亮
+    if (this.autoMode && this.aiDecision && this.aiDecision.target) {
+      const tgt = this.aiDecision.target;
+      const glowColor = tgt === this.bonusFood
+        ? 'rgba(255, 204, 0, 0.25)' : 'rgba(255, 50, 80, 0.20)';
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.roundRect(tgt.x * ts - 2, tgt.y * ts - 2, ts + 4, ts + 4, 6);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1;
+    }
+
+    // 蛇身
+    for (let i = this.snake.length - 1; i >= 0; i--) {
+      const seg = this.snake[i];
+      const t = 1 - i / this.snake.length;
+
+      const r = Math.floor(0 + t * 180);
+      const g = Math.floor(240 - t * 140);
+      const b = 255;
+      const alpha = 1 - (i / this.snake.length) * 0.4;
+
+      // AI 模式下蛇头特殊发光
+      if (i === 0 && this.autoMode) {
+        ctx.shadowColor = 'rgba(180, 0, 255, 0.8)';
+        ctx.shadowBlur = 14;
+      } else {
+        ctx.shadowColor = `rgba(0, 240, 255, ${alpha * 0.5})`;
+        ctx.shadowBlur = i === 0 ? 8 : 3;
+      }
+
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      ctx.beginPath();
+      ctx.roundRect(
+        seg.x * ts + 1, seg.y * ts + 1, ts - 2, ts - 2,
+        i === 0 ? 6 : 4
+      );
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // 蛇头细节
+      if (i === 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.roundRect(seg.x * ts + 3, seg.y * ts + 3, ts - 6, ts - 6, 4);
+        ctx.fill();
+
+        // AI 模式蛇眼变紫色
+        const eyeColor = this.autoMode ? '#b400ff' : '#fff';
+        const eyeGlow = this.autoMode
+          ? 'rgba(180, 0, 255, 0.8)'
+          : 'rgba(0, 240, 255, 0.5)';
+
+        ctx.fillStyle = eyeColor;
+        const eyeSize = this.autoMode ? 5 : 4;
+        const eox = this.direction.x === 0 ? 7 : (this.direction.x === 1 ? 13 : 3);
+        const eoy = this.direction.y === 0 ? 7 : (this.direction.y === 1 ? 13 : 3);
+        ctx.shadowColor = eyeGlow;
+        ctx.shadowBlur = this.autoMode ? 5 : 3;
+        ctx.beginPath();
+        ctx.arc(seg.x * ts + eox, seg.y * ts + eoy, eyeSize, 0, Math.PI * 2);
+        ctx.fill();
+        const ex2 = this.direction.x === 0 ? 13 : eox;
+        const ey2 = this.direction.y === 0 ? 13 : eoy;
+        ctx.beginPath();
+        ctx.arc(seg.x * ts + ex2, seg.y * ts + ey2, eyeSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // 普通食物
+    const fp = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+    ctx.fillStyle = '#ff3355';
+    ctx.shadowColor = `rgba(255, 50, 80, ${fp})`;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(
+      this.food.x * ts + ts / 2, this.food.y * ts + ts / 2,
+      ts / 2 - 2, 0, Math.PI * 2
+    );
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.arc(
+      this.food.x * ts + ts / 2 - 3, this.food.y * ts + ts / 2 - 3,
+      3, 0, Math.PI * 2
+    );
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // 奖励食物
+    if (this.bonusFood) {
+      const bp = Math.sin(Date.now() / 150) * 0.3 + 0.7;
+      ctx.fillStyle = '#ffcc00';
+      ctx.shadowColor = `rgba(255, 204, 0, ${bp})`;
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      const cx = this.bonusFood.x * ts + ts / 2;
+      const cy = this.bonusFood.y * ts + ts / 2;
+      const outerR = ts / 2 - 1, innerR = outerR * 0.4;
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = Math.PI / 2 + (Math.PI * 2 * i) / 10;
+        if (i === 0) ctx.moveTo(cx + Math.cos(angle) * r, cy - Math.sin(angle) * r);
+        else ctx.lineTo(cx + Math.cos(angle) * r, cy - Math.sin(angle) * r);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // 粒子
+    for (const p of this.particles) {
+      ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${p.life})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  gameOver(won = false) {
+    this.isRunning = false;
+    this.isGameOver = true;
+    clearInterval(this.gameLoop);
+    if (this.score > this.bestScore) {
+      this.bestScore = this.score;
+      localStorage.setItem('neoSneakAiBest', this.bestScore);
+    }
+
+    const titleEl = document.getElementById('overlayTitle');
+    const msgEl = document.getElementById('overlayMsg');
+
+    if (won) {
+      titleEl.textContent = '🏆 YOU WIN!';
+      titleEl.style.color = '#ffcc00';
+      msgEl.innerHTML = `最终得分 <span id="overlayScore">${this.score}</span>`;
+    } else {
+      titleEl.textContent = 'GAME OVER';
+      titleEl.style.color = '#ff0066';
+      msgEl.innerHTML = `得分 <span id="overlayScore">${this.score}</span>`;
+    }
+
+    document.getElementById('overlayScore').textContent = this.score;
+    document.getElementById('bestScore').textContent = this.bestScore;
+    document.getElementById('overlay').classList.add('active');
+
+    // 爆炸粒子
+    for (const seg of this.snake) {
+      this.spawnParticles(seg.x, seg.y, 255, 0, 102, 3);
+    }
+    this.runGameOverParticles();
+
+    // AI 自动模式：延迟自动重启
+    if (this.autoMode && this.autoRestart) {
+      setTimeout(() => {
+        if (this.isGameOver && this.autoMode) {
+          this.restart();
+        }
+      }, 1500);
+    }
+  }
+
+  restart() {
+    clearInterval(this.gameLoop);
+    cancelAnimationFrame(this.renderLoop);
+    this.initGame();
+    this.isRunning = true;
+    this.isGameOver = false;
+    this.startLoop();
+  }
+
+  updateUI() {
+    document.getElementById('score').textContent = this.score;
+    document.getElementById('level').textContent = this.level;
+    document.getElementById('length').textContent = this.snake.length;
+    if (this.score > this.bestScore) {
+      this.bestScore = this.score;
+      localStorage.setItem('neoSneakAiBest', this.bestScore);
+      document.getElementById('bestScore').textContent = this.bestScore;
+    }
+  }
+
+  startLoop() {
+    const effectiveSpeed = this.autoMode
+      ? Math.max(15, Math.floor(this.speed / this.speedMultiplier))
+      : this.speed;
+    this.gameLoop = setInterval(() => this.gameTick(), effectiveSpeed);
+  }
+
+  start() {
+    this.isRunning = true;
+    this.isGameOver = false;
+    this.startLoop();
+    this.draw();
+  }
+
+  runGameOverParticles() {
+    if (this.particles.length > 0) {
+      this.particles = this.particles.filter(p => {
+        p.life -= 0.025;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05;
+        return p.life > 0;
+      });
+      this.draw();
+      requestAnimationFrame(() => this.runGameOverParticles());
+    }
+  }
+}
+
+// 背景粒子
+function createBgParticles() {
+  const container = document.getElementById('bgParticles');
+  for (let i = 0; i < 50; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = 1 + Math.random() * 4;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = 5 + Math.random() * 14 + 's';
+    p.style.animationDelay = Math.random() * 12 + 's';
+    const colors = ['#00f0ff', '#b400ff', '#ff0066'];
+    const color = colors[Math.floor(Math.random() * 3)];
+    p.style.background = color;
+    p.style.boxShadow = `0 0 6px ${color}, 0 0 12px ${color}`;
+    container.appendChild(p);
+  }
+}
+
+createBgParticles();
+const game = new NeoSnake();
+game.start();
+</script>
+</body>
+</html>

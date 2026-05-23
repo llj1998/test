@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0a0a0f;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Orbitron', 'Microsoft YaHei', sans-serif;
+  user-select: none;
+}
+
+.bg-particles {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+}
+
+.particle {
+  position: absolute; border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 6px #00f0ff, 0 0 12px #00f0ff;
+  animation: floatUp linear infinite; opacity: 0;
+}
+
+@keyframes floatUp {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 1; } 90% { opacity: 0.6; }
+  100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+}
+
+.container {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+
+.title {
+  font-size: 48px; font-weight: 900; letter-spacing: 8px;
+  background: linear-gradient(135deg, #00f0ff, #b400ff, #00f0ff);
+  background-size: 200% auto;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: gradientShift 3s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 200% center; }
+}
+
+.game-wrapper {
+  position: relative; border-radius: 16px; padding: 3px;
+  background: linear-gradient(135deg, #00f0ff, #b400ff, #ff0066, #00f0ff);
+  background-size: 300% 300%;
+  animation: borderGlow 4s ease infinite;
+  box-shadow: 0 0 30px rgba(0,240,255,0.3), 0 0 60px rgba(180,0,255,0.2);
+}
+
+@keyframes borderGlow {
+  0%,100%{background-position:0% 50%}50%{background-position:100% 50%}
+}
+
+canvas { display: block; border-radius: 14px; background: #0d0d1a; }
+
+.info-bar { display: flex; gap: 30px; align-items: center; flex-wrap: wrap; justify-content: center; }
+
+.info-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+.info-label { font-size: 10px; color: #555; letter-spacing: 2px; text-transform: uppercase; }
+
+.info-value {
+  font-size: 26px; font-weight: 700; color: #00f0ff;
+  text-shadow: 0 0 10px rgba(0,240,255,0.5); min-width: 50px; text-align: center;
+}
+
+.info-value.best { color: #ffcc00; text-shadow: 0 0 10px rgba(255,204,0,0.5); }
+.info-value.ai { color: #b400ff; text-shadow: 0 0 12px rgba(180,0,255,0.6); }
+.info-value.warn { color: #ff3355; text-shadow: 0 0 10px rgba(255,50,80,0.5); }
+
+.btn {
+  font-family: 'Orbitron','Microsoft YaHei',sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  padding: 10px 22px; border: 2px solid #00f0ff; background: transparent;
+  color: #00f0ff; cursor: pointer; border-radius: 8px;
+  transition: all 0.3s ease; text-transform: uppercase;
+}
+
+.btn:hover {
+  background: rgba(0,240,255,0.1); box-shadow: 0 0 20px rgba(0,240,255,0.3);
+  transform: translateY(-2px);
+}
+
+.btn:active { transform: translateY(0); }
+
+.btn.ai-active {
+  border-color: #b400ff; color: #b400ff;
+  box-shadow: 0 0 20px rgba(180,0,255,0.4), inset 0 0 20px rgba(180,0,255,0.1);
+  animation: aiPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes aiPulse {
+  0%,100%{box-shadow:0 0 15px rgba(180,0,255,0.3),inset 0 0 15px rgba(180,0,255,0.05)}
+  50%{box-shadow:0 0 30px rgba(180,0,255,0.6),inset 0 0 30px rgba(180,0,255,0.15)}
+}
+
+.btn-group { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+.speed-indicator {
+  font-size: 10px; color: #b400ff; letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(180,0,255,0.4);
+  min-height: 16px;
+}
+
+.overlay {
+  position: absolute; top:0;left:0;width:100%;height:100%;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px;
+  background: rgba(10,10,15,0.88); border-radius: 14px;
+  pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+}
+
+.overlay.active { pointer-events: all; opacity: 1; }
+
+.overlay-title {
+  font-size: 36px; font-weight: 900; letter-spacing: 4px;
+  color: #ff0066; text-shadow: 0 0 20px rgba(255,0,102,0.6);
+}
+
+.overlay-score { font-size: 18px; color: #aaa; letter-spacing: 2px; }
+.overlay-score span { color: #00f0ff; font-weight: 700; font-size: 24px; }
+
+@media (max-width: 650px) {
+  .title { font-size: 24px; letter-spacing: 4px; }
+  .info-bar { gap: 14px; }
+  .info-value { font-size: 20px; }
+  .btn { font-size: 10px; padding: 8px 14px; }
+}
