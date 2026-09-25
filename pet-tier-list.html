@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>宠物用品人气分级榜</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+QingKe+HuangYou&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#F1F2F5; --surface:#FFFFFF; --surface-2:#E9EBF0; --ink:#15171C; --ink-2:#464C58; --ink-3:#777E8C; --line:#DADDE4; --focus:#2F6FEB;
+  --t-hang:#E23B2E; --t-top:#F08A24; --t-elite:#F0C22F; --t-npc:#9AA3B2; --t-done:#7B6858;
+  --on-hang:#FFFFFF; --on-top:#2A1400; --on-elite:#2B2000; --on-npc:#151920; --on-done:#F6EFE8;
+  --tx-hang:#C4271B; --tx-top:#B85A07; --tx-elite:#8F6C00; --tx-npc:#5B6475; --tx-done:#6A5444;
+  --shadow:0 18px 50px -18px rgb(10 14 22 / .35);
+  --font-display:"ZCOOL QingKe HuangYou","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --font-body:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1115; --surface:#171A20; --surface-2:#21252D; --ink:#ECEEF2; --ink-2:#B4BAC6; --ink-3:#7E8697; --line:#2B3039; --focus:#6EA0FF;
+    --t-done:#8C7866; --on-done:#FBF5EF;
+    --tx-hang:#FF6F62; --tx-top:#FFA652; --tx-elite:#F4CF55; --tx-npc:#AEB7C6; --tx-done:#C2A994;
+    --shadow:0 18px 50px -18px rgb(0 0 0 / .7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1115; --surface:#171A20; --surface-2:#21252D; --ink:#ECEEF2; --ink-2:#B4BAC6; --ink-3:#7E8697; --line:#2B3039; --focus:#6EA0FF;
+  --t-done:#8C7866; --on-done:#FBF5EF;
+  --tx-hang:#FF6F62; --tx-top:#FFA652; --tx-elite:#F4CF55; --tx-npc:#AEB7C6; --tx-done:#C2A994;
+  --shadow:0 18px 50px -18px rgb(0 0 0 / .7);
+  color-scheme:dark;
+}
+
+.t0{--t:var(--t-hang);--on:var(--on-hang);--tx:var(--tx-hang)}
+.t1{--t:var(--t-top);--on:var(--on-top);--tx:var(--tx-top)}
+.t2{--t:var(--t-elite);--on:var(--on-elite);--tx:var(--tx-elite)}
+.t3{--t:var(--t-npc);--on:var(--on-npc);--tx:var(--tx-npc)}
+.t4{--t:var(--t-done);--on:var(--on-done);--tx:var(--tx-done)}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:clamp(16px,3vw,32px)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* ---------- masthead ---------- */
+.mast{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(20px,4vw,52px);align-items:end;padding-block:clamp(28px,5vw,56px) 28px}
+.eyebrow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12px;letter-spacing:.08em;color:var(--ink-3);margin:0 0 14px}
+.tag{font-size:11.5px;letter-spacing:.03em;padding:1px 8px;border-radius:999px;border:1px dashed var(--ink-3);color:var(--ink-2)}
+.tag.src{border-style:solid;border-color:var(--focus);color:var(--focus)}
+.linkbtn{border:0;background:none;padding:0;color:var(--focus);cursor:pointer;font-size:12px;text-decoration:underline;text-underline-offset:2px}
+h1{font-family:var(--font-display);font-weight:400;font-size:clamp(36px,5.4vw,58px);line-height:1.05;margin:0;letter-spacing:.02em;text-wrap:balance}
+.ladder{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:18px 0 0;padding:0;list-style:none}
+.ladder li{display:flex;align-items:center;gap:6px}
+.ladder b{font-family:var(--font-display);font-weight:400;background:var(--t);color:var(--on);font-size:19px;line-height:1;padding:6px 10px 5px;border-radius:6px}
+.ladder li+li::before{content:"›";color:var(--ink-3);font-size:18px}
+.lede{max-width:36em;color:var(--ink-2);font-size:14.5px;margin:16px 0 0}
+
+.dist{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px 14px}
+.dist-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px 12px;flex-wrap:wrap}
+.dist-scope{font-size:12.5px;color:var(--ink-3)}
+.dist-total{font-family:var(--font-mono);font-size:32px;font-weight:600;letter-spacing:-.01em;line-height:1.1}
+.dist-total small{font-family:var(--font-body);font-size:13px;color:var(--ink-3);font-weight:400;margin-left:4px}
+.stack{display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;margin:14px 0 10px;background:var(--surface-2)}
+.stack button{border:0;padding:0;background:var(--t);cursor:pointer;min-width:0}
+.stack button:hover{filter:brightness(1.08)}
+.legend{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.lg{border:1px solid transparent;background:none;border-radius:8px;padding:6px 6px 5px;text-align:left;cursor:pointer;display:grid;gap:1px;min-width:0}
+.lg:hover{background:var(--surface-2)}
+.lg[aria-pressed="true"]{border-color:var(--t);background:color-mix(in srgb,var(--t) 13%,transparent)}
+.lg-name{font-family:var(--font-display);font-size:18px;line-height:1.15;color:var(--tx);white-space:nowrap}
+.lg-n{font-family:var(--font-mono);font-size:13px;font-weight:600}
+.lg-p{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+
+/* ---------- toolbar ---------- */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);border-block:1px solid var(--line)}
+.bar-in{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-block:10px}
+.tabs{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+.tabs button{border:0;background:none;padding:6px 14px;border-radius:7px;cursor:pointer;color:var(--ink-2);font-weight:500;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .1)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;flex:1;justify-content:flex-end;min-width:0}
+.ctl{height:36px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:0 10px;min-width:0;max-width:100%}
+.ctl:hover{border-color:var(--ink-3)}
+input.ctl{width:210px}
+select.ctl{width:220px}
+input.ctl::placeholder{color:var(--ink-3)}
+.btn{height:36px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:0 12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn svg{width:16px;height:16px}
+.btn-ink{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-ink:hover{opacity:.9}
+.btn-sm{height:30px;padding:0 10px;font-size:13px}
+
+.context{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding-block:16px 0;font-size:13px;color:var(--ink-2)}
+.context b{font-family:var(--font-mono);color:var(--ink)}
+
+/* ---------- board ---------- */
+.board{display:grid;gap:10px;padding-block:14px 8px}
+.row{display:grid;grid-template-columns:128px minmax(0,1fr);border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--t) 7%,var(--surface));border:1px solid color-mix(in srgb,var(--t) 24%,var(--line));scroll-margin-top:84px}
+.row-label{background:var(--t);color:var(--on);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px 8px;text-align:center}
+.glyph{font-family:var(--font-display);line-height:1;font-size:66px}
+.glyph.l2{font-size:46px}
+.glyph.l3{font-size:34px}
+.row-range{font-family:var(--font-mono);font-size:12px;font-weight:500;opacity:.88}
+.row-count{font-size:12px;font-weight:500}
+.row-body{padding:12px;min-width:0}
+.row-note{font-size:12.5px;color:var(--ink-2);margin:0 0 10px;display:flex;gap:4px 12px;justify-content:space-between;flex-wrap:wrap}
+.row-note span:last-child{color:var(--ink-3)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:8px}
+.more{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.empty{color:var(--ink-3);font-size:13px;padding:10px 2px}
+
+.tile{position:relative;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 10px 13px;text-align:left;cursor:pointer;overflow:hidden;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.tile:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--t) 60%,var(--line));box-shadow:0 6px 16px -8px color-mix(in srgb,var(--t) 60%,transparent)}
+.ico{width:34px;height:34px;border-radius:8px;background:var(--surface-2);color:var(--ink-2);display:grid;place-items:center}
+.ico svg{width:20px;height:20px}
+.tile-name{font-size:13px;font-weight:500;line-height:1.38;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tile-meta{display:block;font-size:11.5px;color:var(--ink-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-p{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;color:var(--tx);line-height:1.3}
+.tile-p small{font-size:10.5px;font-weight:500;margin-left:1px;color:var(--ink-3)}
+.meter{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--surface-2)}
+.meter i{display:block;height:100%;background:var(--t)}
+
+/* ---------- table ---------- */
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-top:14px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:780px}
+th{font-size:11.5px;letter-spacing:.06em;color:var(--ink-3);font-weight:500;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface-2)}
+.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+th.num{font-family:var(--font-body)}
+.sub{display:block;font-size:11.5px;color:var(--ink-3)}
+.it{font-style:italic}
+.pbar{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.track{width:84px;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;flex:none}
+.track i{display:block;height:100%;background:var(--t)}
+.pill{display:inline-block;font-family:var(--font-display);background:var(--t);color:var(--on);padding:2px 8px 1px;border-radius:5px;font-size:14px;line-height:1.45;white-space:nowrap}
+.few{font-size:10.5px;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;font-family:var(--font-body)}
+.pager{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-block:12px;color:var(--ink-3);font-size:13px}
+.pager div{display:flex;gap:8px;align-items:center}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* ---------- categories ---------- */
+.cats{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cat-head,.cat-row{display:grid;grid-template-columns:minmax(0,1.3fr) 60px 74px minmax(0,2.4fr) 70px;gap:14px;align-items:center;padding:10px 16px}
+.cat-head{font-size:11.5px;color:var(--ink-3);border-bottom:1px solid var(--line);letter-spacing:.05em}
+.cat-row{border:0;border-bottom:1px solid var(--line);background:none;width:100%;text-align:left;cursor:pointer}
+.cat-row:last-child{border-bottom:0}
+.cat-row:hover{background:var(--surface-2)}
+.cat-name{font-weight:500;display:flex;align-items:center;gap:10px;min-width:0}
+.cat-name .ico{width:28px;height:28px;flex:none}
+.cat-name .ico svg{width:17px;height:17px}
+.cat-name span{min-width:0}
+.cat-code{display:block;font-family:var(--font-mono);font-size:10.5px;font-weight:500;color:var(--ink-3);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cstack{display:flex;height:20px;border-radius:4px;overflow:hidden;gap:1px;background:var(--surface-2)}
+.cstack span{background:var(--t);color:var(--on);font-size:10.5px;display:grid;place-items:center;overflow:hidden;font-family:var(--font-mono);font-weight:500;min-width:0}
+.hot{color:var(--tx-hang)}
+
+/* ---------- footer ---------- */
+.foot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding-block:36px 48px;margin-top:24px;border-top:1px solid var(--line);color:var(--ink-2);font-size:13px}
+.foot h2{font-size:12px;letter-spacing:.08em;color:var(--ink-3);font-weight:500;margin:0 0 6px}
+.foot p{margin:0;max-width:40em}
+
+/* ---------- dialogs ---------- */
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink);border-radius:14px;box-shadow:var(--shadow);width:min(540px,calc(100% - 32px));max-height:calc(100% - 32px)}
+dialog::backdrop{background:rgb(10 12 16 / .5)}
+.dlg-in{padding:22px 22px 20px;display:grid;gap:16px}
+.dlg-in h2{margin:0;font-size:18px}
+.dlg-in p{margin:0;color:var(--ink-2);font-size:13.5px}
+.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.th-list{display:grid;gap:8px}
+.th-row{display:grid;grid-template-columns:86px auto 1fr;gap:10px;align-items:center;font-size:13.5px;color:var(--ink-2)}
+.th-row .pill{justify-self:start;font-size:16px}
+.th-row input{width:90px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:0 8px;font-family:var(--font-mono)}
+.msg{font-size:13px;min-height:1.4em;color:var(--ink-2)}
+.msg.err{color:var(--tx-hang)}
+.code{font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:pre;margin:0;color:var(--ink)}
+.cols{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px;color:var(--ink-2);margin:0}
+.cols dt{font-family:var(--font-mono);color:var(--ink)}
+.cols dd{margin:0}
+.file-in{font-size:13px;max-width:100%}
+
+.sheet{margin:0 0 0 auto;height:100%;max-height:100%;width:min(460px,100%);border-radius:0}
+.sheet[open]{display:flex;flex-direction:column}
+.d-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:start;padding:calc(20px + env(safe-area-inset-top,0px)) 20px 16px;border-bottom:1px solid var(--line)}
+.d-badge{background:var(--t);color:var(--on);font-family:var(--font-display);width:64px;height:64px;border-radius:10px;display:grid;place-items:center;font-size:38px;line-height:1}
+.d-badge.l2{font-size:26px}
+.d-badge.l3{font-size:19px}
+.d-name{font-size:17px;font-weight:700;line-height:1.35;margin:0;text-wrap:balance}
+.d-it{font-size:13px;color:var(--ink-3);font-style:italic;margin:3px 0 0}
+.x{border:0;background:var(--surface-2);width:32px;height:32px;border-radius:8px;cursor:pointer;display:grid;place-items:center;flex:none}
+.x svg{width:16px;height:16px}
+.d-body{padding:18px 20px calc(28px + env(safe-area-inset-bottom,0px));display:grid;gap:20px;overflow:auto;align-content:start}
+.d-label{font-size:11.5px;color:var(--ink-3);letter-spacing:.06em;margin:0 0 6px}
+.d-big{display:flex;align-items:baseline;gap:4px;line-height:1}
+.d-big b{font-family:var(--font-mono);font-size:46px;font-weight:600;color:var(--tx);letter-spacing:-.02em}
+.d-big span{font-family:var(--font-mono);font-size:18px;color:var(--ink-3)}
+.d-sub{margin:8px 0 0;color:var(--ink-2);font-size:13.5px}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;margin:0}
+.kv dt{font-size:11.5px;color:var(--ink-3);letter-spacing:.05em}
+.kv dd{margin:2px 0 0;font-weight:500}
+.kv dd small{display:block;font-weight:400;color:var(--ink-3);font-size:12px}
+.cells{display:flex;flex-wrap:wrap;gap:4px}
+.cells i{width:16px;height:16px;border-radius:3px;background:var(--surface-2);border:1px solid var(--line)}
+.cells i.on{background:var(--t);border-color:transparent}
+.cells-key{display:flex;gap:14px;font-size:12px;color:var(--ink-3);margin-top:8px}
+.cells-key span{display:inline-flex;align-items:center;gap:5px}
+.cells-key i{width:10px;height:10px;border-radius:2px;background:var(--surface-2);border:1px solid var(--line)}
+.cells-key i.on{background:var(--t);border-color:transparent}
+.hint{padding:12px 14px;border-radius:10px;background:var(--surface-2);font-size:13px;color:var(--ink-2);display:grid;gap:6px}
+.hint b{color:var(--ink)}
+
+@media (max-width:900px){
+  .mast{grid-template-columns:1fr;align-items:start}
+  .foot{grid-template-columns:1fr;gap:18px}
+}
+@media (max-width:720px){
+  .filters{justify-content:stretch}
+  .filters .ctl,.filters input.ctl,.filters select.ctl{flex:1 1 140px;width:auto}
+  .cat-head{display:none}
+  .cat-row{grid-template-columns:minmax(0,1fr) auto auto;row-gap:8px}
+  .cat-row .cstack{grid-column:1/-1}
+  .cat-row .hot-col{display:none}
+}
+@media (max-width:640px){
+  .row{grid-template-columns:1fr}
+  .row-label{flex-direction:row;justify-content:flex-start;gap:12px;padding:10px 14px}
+  .row-label .glyph,.row-label .glyph.l2,.row-label .glyph.l3{font-size:30px}
+  .grid{grid-template-columns:1fr}
+  .legend{gap:2px}
+  .lg{padding:5px 3px}
+  .lg-name{font-size:15px}
+  .tabs{width:100%}
+  .tabs button{flex:1;padding-inline:6px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<header class="wrap mast">
+  <div>
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1>宠物用品人气分级榜</h1>
+    <ul class="ladder" aria-label="评级从高到低">
+      <li class="t0"><b>夯</b></li><li class="t1"><b>顶级</b></li><li class="t2"><b>人上人</b></li><li class="t3"><b>NPC</b></li><li class="t4"><b>拉完了</b></li>
+    </ul>
+    <p class="lede">依据订单数据，统计每款产品在售期间以 30 天为一个周期、周期内被下单的概率，并据此把全部产品分为五个等级。点击任意产品可查看逐周期记录和升降级距离。</p>
+  </div>
+  <section class="dist" aria-label="评级分布" id="dist"></section>
+</header>
+
+<nav class="bar" aria-label="视图与筛选">
+  <div class="wrap bar-in">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-act="view" data-v="board" aria-selected="true">分级榜</button>
+      <button role="tab" data-act="view" data-v="table" aria-selected="false">明细表</button>
+      <button role="tab" data-act="view" data-v="cats" aria-selected="false">分类对比</button>
+    </div>
+    <div class="filters">
+      <select class="ctl" id="fCat" aria-label="产品分类"></select>
+      <select class="ctl" id="fTier" aria-label="评级">
+        <option value="all">全部评级</option>
+        <option value="0">夯</option><option value="1">顶级</option><option value="2">人上人</option><option value="3">NPC</option><option value="4">拉完了</option>
+      </select>
+      <select class="ctl" id="fSort" aria-label="排序" hidden>
+        <option value="p-desc">下单概率 高→低</option>
+        <option value="p-asc">下单概率 低→高</option>
+        <option value="w-desc">在售周期 多→少</option>
+        <option value="sku">产品编码</option>
+      </select>
+      <input class="ctl" id="fQ" type="search" placeholder="搜索名称 / 编码 / 分类" aria-label="搜索产品">
+      <button class="btn" data-act="rules" type="button">评级规则</button>
+      <button class="btn btn-ink" data-act="import" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>导入数据
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div class="context" id="context"></div>
+  <section id="view-board" class="board" aria-label="分级榜"></section>
+  <section id="view-table" hidden aria-label="明细表"></section>
+  <section id="view-cats" hidden aria-label="分类对比"></section>
+</main>
+
+<footer class="wrap foot">
+  <div>
+    <h2>指标口径</h2>
+    <p>30 天下单概率 = 有订单的 30 天周期数 ÷ 在售期间的 30 天周期总数。一个周期内只要出现至少一笔订单即计为“有单周期”。</p>
+  </div>
+  <div>
+    <h2>评级阈值</h2>
+    <p id="footTh"></p>
+  </div>
+  <div>
+    <h2>关于演示数据</h2>
+    <p>页面自带的产品名称、编码与数值由程序按分类模拟生成，仅用于展示效果。点击“导入数据”载入真实订单统计 CSV 后，全部视图会按真实数据重新分级。</p>
+  </div>
+</footer>
+
+<dialog id="detail" class="sheet" aria-label="产品详情"></dialog>
+
+<dialog id="rulesDlg" aria-labelledby="rulesTitle">
+  <form class="dlg-in" id="rulesForm" method="dialog">
+    <h2 id="rulesTitle">评级规则</h2>
+    <p>按 30 天下单概率划分。每一级填写下限（含），数值需从上到下依次减小，低于 NPC 下限的产品为“拉完了”。</p>
+    <div class="th-list" id="thList"></div>
+    <div class="msg" id="rulesMsg" role="status"></div>
+    <div class="dlg-actions">
+      <button class="btn" type="button" data-act="th-default">恢复默认</button>
+      <button class="btn" type="button" data-act="close">取消</button>
+      <button class="btn btn-ink" type="submit">应用</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="importDlg" aria-labelledby="importTitle">
+  <div class="dlg-in">
+    <h2 id="importTitle">导入订单统计数据</h2>
+    <p>支持 CSV 文件（逗号、分号或制表符分隔，UTF-8 或 GBK 编码均可）。第一行为表头，可用英文或中文列名：</p>
+    <dl class="cols">
+      <dt>sku</dt><dd>产品编码（或“编码”“货号”）</dd>
+      <dt>name</dt><dd>中文名称（或“名称”）</dd>
+      <dt>name_it</dt><dd>意大利语名称，可选</dd>
+      <dt>category</dt><dd>分类，填意大利语分类代码如 LETTIERA SABBIA，或中文分类名</dd>
+      <dt>windows</dt><dd>在售 30 天周期总数（或“周期数”）</dd>
+      <dt>ordered_windows</dt><dd>有订单的周期数（或“有单周期数”）</dd>
+      <dt>probability</dt><dd>若没有周期数据，可直接给出概率：0.62、62 或 62% 均可</dd>
+    </dl>
+    <pre class="code" id="tpl">sku,name,name_it,category,windows,ordered_windows
+LET-0212,膨润土猫砂 10L 原味,Lettiera Bentonite 10 L Neutro,LETTIERA SABBIA,30,27
+EST-0101,冰凉垫 60cm 蓝色,Tappetino Rinfrescante 60 cm Blu,ESTATE,18,6
+ACQ-0330,加热棒 40L,Riscaldatore 40 L,ACQUARIO,24,2</pre>
+    <input class="file-in" type="file" id="fileIn" accept=".csv,.tsv,.txt,text/csv">
+    <div class="msg" id="importMsg" role="status"></div>
+    <div class="dlg-actions">
+      <button class="btn" type="button" data-act="copy-tpl">复制示例</button>
+      <button class="btn" type="button" data-act="reset-demo" id="resetDemoBtn" hidden>恢复演示数据</button>
+      <button class="btn btn-ink" type="button" data-act="close">完成</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+
+/* ============ 基础配置 ============ */
+const DATA_AS_OF = '2026-09-20';
+const DEFAULT_TH = [70, 50, 30, 15];            // 夯 / 顶级 / 人上人 / NPC 的下限（%）
+const BOARD_FIRST = 10, BOARD_STEP = 40, PAGE_SIZE = 50, FEW_WINDOWS = 6;
+const TIERS = [
+  { name: '夯',     note: '几乎每个周期都有人下单的常青爆款' },
+  { name: '顶级',   note: '稳定热销，多数周期都有订单' },
+  { name: '人上人', note: '表现在平均线以上' },
+  { name: 'NPC',    note: '偶尔有单，存在感一般' },
+  { name: '拉完了', note: '长期少有人下单，可考虑清库或下架' },
+];
+
+const ICONS = {
+  toy:'<circle cx="12" cy="12" r="8"/><path d="M4.6 9.3c4.9 1.6 9.9 1.6 14.8 0M4.6 14.7c4.9-1.6 9.9-1.6 14.8 0"/>',
+  cat:'<path d="M5 20v-8.5L4 4.5l5 3.2h6l5-3.2-1 7V20z"/><path d="M9.5 13v.6M14.5 13v.6M11 16.5h2"/>',
+  care:'<path d="M12 3.5s6 6.6 6 10.8a6 6 0 0 1-12 0C6 10.1 12 3.5 12 3.5z"/><path d="M9.2 14.5a2.8 2.8 0 0 0 2.8 2.8"/>',
+  walk:'<circle cx="8" cy="16" r="4.5"/><path d="M11.2 12.8 19 5M15.5 5H19v3.5"/>',
+  home:'<path d="M4 11 12 4l8 7v9H4z"/><path d="M9.5 20v-4.5a2.5 2.5 0 0 1 5 0V20"/>',
+  food:'<path d="M3 12h18c0 4.4-4 7.5-9 7.5S3 16.4 3 12z"/><path d="M9 9c0-1.6 1.5-1.8 1.5-3.5M13.5 9c0-1.6 1.5-1.8 1.5-3.5"/>',
+  summer:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+  wear:'<path d="M8.5 4 3.5 7l2 4 2.5-1v10h8V10l2.5 1 2-4-5-3c-.3 1.7-1.7 2.8-3.5 2.8S8.8 5.7 8.5 4z"/>',
+  aqua:'<path d="M3 12c3.2-5.2 9.8-6 14 0-4.2 6-10.8 5.2-14 0z"/><path d="M17 12l4-3.2v6.4z"/><path d="M7.5 11v.4"/>',
+  other:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16"/>',
+};
+const GROUPS = { toy:'玩具', cat:'猫咪专区', care:'清洁护理', walk:'出行牵引', home:'窝具居家', food:'餐具食品', summer:'季节用品', wear:'服饰', aqua:'水族', other:'其他' };
+const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.other}</svg>`;
+
+/* ============ 分类（意大利语代码为数据主键） ============ */
+const POOLS = {
+  size:'S|S;M|M;L|L;XL|XL',
+  color:'红色|Rosso;蓝色|Blu;灰色|Grigio;粉色|Rosa;黑色|Nero;绿色|Verde',
+  tone:'米白|Beige;浅灰|Grigio Chiaro;深棕|Marrone;炭黑|Antracite',
+  pack:'单只装|1 pz;2只装|2 pz;3只装|3 pz;6只装|6 pz',
+  dim:'50cm|50 cm;60cm|60 cm;70cm|70 cm;80cm|80 cm;100cm|100 cm',
+  rolls:'4卷|4 rotoli;8卷|8 rotoli;12卷|12 rotoli;20卷|20 rotoli',
+  volume:'250ml|250 ml;500ml|500 ml;1L|1 L',
+  scent:'原味|Neutro;薰衣草|Lavanda;绿茶|Tè Verde;活性炭|Carbone Attivo;婴儿爽身粉|Talco',
+  sheets:'10片|10 pz;30片|30 pz;50片|50 pz;100片|100 pz',
+  litre:'5L|5 L;10L|10 L;20L|20 L',
+  lenR:'3m|3 m;5m|5 m;8m|8 m',
+  cage:'61cm|61 cm;76cm|76 cm;91cm|91 cm;107cm|107 cm',
+  cap:'20L|20 L;40L|40 L;60L|60 L;100L|100 L',
+  weight:'400g|400 g;1.5kg|1,5 kg;3kg|3 kg;12kg|12 kg',
+  flavor:'鸡肉|Pollo;三文鱼|Salmone;牛肉|Manzo;羊肉|Agnello',
+};
+const pairs = s => s.split(';').map(x => x.split('|'));
+Object.keys(POOLS).forEach(k => POOLS[k] = pairs(POOLS[k]));
+
+// [代码, 简称, 中文含义, 大类, 编码前缀, 演示均值, 规格A, 规格B, 基础款]
+const CAT_DEFS = [
+  ['ESTATE','夏季用品','夏季用品：冰垫、游泳池等','summer','EST',.27,'dim','color',"冰凉垫|Tappetino Rinfrescante;折叠泳池|Piscina Pieghevole;冰感领巾|Bandana Rinfrescante;喷水玩具|Gioco Spruzzo d'Acqua;凉感窝垫|Cuscino Rinfrescante"],
+  ['GIOCATTOLI IN VINILE','乙烯基玩具','乙烯基 / PVC 宠物玩具','toy','GVI',.33,'color','pack',"发声小猪|Maialino Sonoro;乙烯基小鸭|Paperella in Vinile;发声骨头|Osso Sonoro;乙烯基刺猬|Riccio in Vinile;卡通汉堡|Hamburger in Vinile"],
+  ['GIOCATTOLI IN GOMMA','橡胶玩具','橡胶玩具','toy','GGO',.43,'size','color',"耐咬橡胶球|Palla in Gomma Resistente;漏食球|Palla Dispensa Premi;橡胶骨头|Osso in Gomma;磨牙圈|Anello da Masticare;橡胶飞盘|Frisbee in Gomma"],
+  ['GIOCATTOLI A CORDA','绳结玩具','绳结 / 绳索玩具','toy','GCO',.35,'size','color',"双结棉绳|Corda a Due Nodi;绳球|Palla di Corda;拔河绳|Corda Tira e Molla;绳结骨头|Osso di Corda"],
+  ['GIOCATTOLI IN STOFFA','布艺毛绒玩具','布艺 / 毛绒玩具','toy','GST',.36,'size','color',"毛绒小熊|Orsetto in Peluche;发声毛绒鸭|Anatra Peluche Sonora;毛绒长颈鹿|Giraffa in Peluche;帆布狐狸|Volpe in Tessuto;毛绒甜甜圈|Ciambella in Peluche"],
+  ['GIOCATTOLI PER GATTI','猫玩具','猫玩具','cat','GGA',.44,'color','pack',"逗猫棒|Canna con Piume;猫薄荷老鼠|Topolino all'Erba Gatta;铃铛球|Palline con Campanello;猫隧道|Tunnel per Gatti;轨道球|Torre di Palline"],
+  ['MOBILI TIRAGRAFFI PER GATTI','猫爬架 / 猫抓','猫爬架、猫抓家具','cat','MTG',.33,'dim','tone',"猫爬架|Albero Tiragraffi;剑麻猫抓柱|Palo in Sisal;瓦楞猫抓板|Tiragraffi in Cartone;壁挂猫抓板|Tiragraffi da Parete;带窝猫爬架|Tiragraffi con Cuccia"],
+  ['ARTICOLI WC GATTO','猫厕所用品','猫厕所 / 猫砂盆相关用品','cat','WCG',.37,'tone','size',"封闭式猫厕所|Toilette Chiusa;开放式猫砂盆|Lettiera Aperta;猫砂铲|Paletta per Lettiera;猫砂垫|Tappetino Raccogli Sabbia;猫厕所滤片|Filtro per Toilette"],
+  ['SACCHETTI DI IMMONDIZIA','垃圾袋 / 清洁袋','垃圾袋 / 清洁袋','care','SAC',.64,'rolls','color',"拾便袋|Sacchetti Igienici;印花拾便袋|Sacchetti Igienici Stampati;拾便袋挂扣盒|Dispenser con Sacchetti;可降解拾便袋|Sacchetti Biodegradabili;猫砂盆垃圾袋|Sacchetti per Lettiera"],
+  ['ARTICOLI TOILETTATURA','美容梳理','宠物美容、梳理用品','care','TOE',.38,'size','color',"针梳|Spazzola a Spilli;不锈钢排梳|Pettine in Acciaio;脱毛梳|Spazzola Rimuovi Pelo;指甲剪|Tagliaunghie;洗澡按摩手套|Guanto da Bagno"],
+  ['SHAMPOO','洗毛液 / 香波','宠物洗毛液 / 香波','care','SHA',.36,'volume','scent',"燕麦香波|Shampoo all'Avena;除臭香波|Shampoo Deodorante;幼宠香波|Shampoo Cuccioli;白毛专用香波|Shampoo Manto Bianco;免洗泡沫|Schiuma Senza Risciacquo"],
+  ['PANNOLINI TAPPETTINI IGIENICI','尿裤 / 尿垫','宠物尿裤、尿垫','care','PAN',.58,'size','sheets',"宠物尿垫|Tappetini Igienici;加厚尿垫|Tappetini Extra Assorbenti;竹炭尿垫|Tappetini al Carbone;公狗礼貌带|Fascia per Maschi;母狗生理裤|Mutandina Igienica"],
+  ['LETTIERA SABBIA','猫砂','猫砂','cat','LET',.62,'litre','scent',"膨润土猫砂|Lettiera Bentonite;豆腐猫砂|Lettiera al Tofu;水晶猫砂|Lettiera in Silicio;松木猫砂|Lettiera Pellet di Pino;混合猫砂|Lettiera Mista"],
+  ['ACCESSORI PER OUTDOOR','户外用品','户外宠物用品','walk','OUT',.29,'color','size',"随行水壶|Borraccia da Passeggio;折叠碗|Ciotola Pieghevole;反光背心|Gilet Riflettente;车载安全带|Cintura di Sicurezza Auto;LED项圈灯|Luce LED per Collare"],
+  ['GUINZAGLIO RETRATTILE','伸缩牵引绳','伸缩牵引绳','walk','GRE',.41,'lenR','color',"伸缩牵引绳|Guinzaglio Retrattile;带灯伸缩绳|Guinzaglio Retrattile con Luce;带状伸缩绳|Guinzaglio Retrattile a Nastro;小型犬伸缩绳|Guinzaglio Retrattile Mini"],
+  ['GUIZAGLIO CORDA','绳式牵引绳','绳式牵引绳','walk','GCD',.31,'size','color',"登山绳牵引|Guinzaglio in Corda;反光绳牵引|Guinzaglio Corda Riflettente;双头牵引绳|Guinzaglio Doppio;P字训练绳|Guinzaglio a Strozzo"],
+  ['GUINZAGLIO SEMPLICE','普通牵引绳','普通牵引绳','walk','GSE',.37,'size','color',"尼龙牵引绳|Guinzaglio in Nylon;皮质牵引绳|Guinzaglio in Pelle;训练长绳|Guinzaglio da Addestramento;弹力缓冲绳|Guinzaglio Elastico"],
+  ['PETTORINA A H','H型胸背带','H型胸背带','walk','PTH',.34,'size','color',"H型胸背带|Pettorina a H;反光H型胸背|Pettorina a H Riflettente;网布H型胸背|Pettorina a H in Rete"],
+  ['PETTORINA SEMPLICE','普通胸背带','普通胸背带','walk','PTS',.39,'size','color',"背心式胸背|Pettorina a Gilet;防爆冲胸背|Pettorina Antistrappo;透气网布胸背|Pettorina Traspirante;猫用胸背带|Pettorina per Gatti"],
+  ['COLLARE PER ANIMALI','宠物项圈','宠物项圈','walk','COL',.37,'size','color',"尼龙项圈|Collare in Nylon;皮质项圈|Collare in Pelle;猫用安全项圈|Collare Gatto con Sgancio;铃铛项圈|Collare con Campanellino;名牌项圈|Collare con Medaglietta"],
+  ['CIOTOLE','碗 / 食盆 / 水盆','宠物碗、食盆、水盆','food','CIO',.46,'size','color',"不锈钢碗|Ciotola in Acciaio;慢食碗|Ciotola Antiingozzo;双碗架|Doppia Ciotola con Supporto;陶瓷碗|Ciotola in Ceramica;自动饮水机|Fontanella Automatica"],
+  ['GABBIA','笼具','宠物笼 / 笼具','home','GAB',.20,'cage','tone',"折叠铁笼|Gabbia Pieghevole;兔笼|Gabbia per Conigli;鸟笼|Gabbia per Uccelli;仓鼠笼|Gabbia per Criceti;室内围栏|Recinto da Interno"],
+  ['CUCCE PLASTICA E BRANDINE','塑料窝 / 行军床','塑料宠物窝、宠物行军床 / 高架床','home','CPB',.25,'size','tone',"塑料狗窝|Cuccia in Plastica;行军床|Brandina Rialzata;户外高架床|Brandina da Esterno;塑料猫窝|Cuccia in Plastica per Gatti"],
+  ['TRASPORTINO PLASTICA','塑料航空箱','塑料航空箱 / 运输箱','walk','TRP',.30,'size','tone',"航空箱|Trasportino in Plastica;开顶航空箱|Trasportino Apertura dall'Alto;带轮航空箱|Trasportino con Ruote;通风航空箱|Trasportino Ventilato"],
+  ['BORSA TRASPORTINO RIGIDE','硬质运输包','硬质宠物运输包 / 运输箱','walk','BTR',.24,'size','color',"硬壳猫包|Borsa Rigida per Gatti;太空舱背包|Zaino con Oblò;拉杆宠物箱|Trasportino con Trolley;硬质斜挎包|Borsa Rigida a Tracolla"],
+  ['RIEMPIMENTO PER CUSCINI','垫子填充物','宠物垫 / 靠垫填充物','home','RIC',.15,'dim','pack',"替换内芯|Imbottitura di Ricambio;记忆棉内芯|Imbottitura Memory;填充棉|Fibra per Cuscini"],
+  ['CASSETTA E MATERASSI DI SPUGNA PER ANIMALE','海绵窝 / 海绵垫','宠物箱 / 窝及海绵垫','home','CMS',.22,'dim','tone',"海绵床垫|Materasso in Spugna;海绵方窝|Cassetta in Spugna;骨科记忆床垫|Materasso Ortopedico;防水海绵垫|Materasso Impermeabile"],
+  ['CUCCE E MATERASSI PER ANIMALE','宠物窝 / 床垫','宠物窝、宠物垫、宠物床垫','home','CMA',.41,'dim','color',"甜甜圈窝|Cuccia a Ciambella;方形狗窝|Cuccia Rettangolare;猫窝垫|Cuscino per Gatti;沙发型狗窝|Divanetto per Cani;可拆洗床垫|Materasso Sfoderabile"],
+  ['VESTITI PER CANE','狗衣服','狗衣服','wear','VES',.24,'size','color',"狗狗雨衣|Impermeabile per Cani;羽绒背心|Piumino per Cani;针织毛衣|Maglioncino;连帽卫衣|Felpa con Cappuccio;节日装|Costume Natalizio"],
+  ['CASETTA PER ANIMALI','宠物屋','宠物屋 / 狗屋 / 猫屋','home','CAS',.18,'size','tone',"木质狗屋|Casetta in Legno;塑料狗屋|Casetta in Plastica;猫屋|Casetta per Gatti;户外保温屋|Casetta Isolata"],
+  ['ACQUARIO','水族用品','鱼缸、水族用品','aqua','ACQ',.14,'cap','tone',"玻璃鱼缸|Acquario in Vetro;外挂过滤器|Filtro Esterno;加热棒|Riscaldatore;造景装饰|Decorazione per Acquario;水族LED灯|Lampada LED"],
+  ['MANGIMI PER ANIMALE','宠物食品','宠物食品 / 饲料','food','MAN',.54,'weight','flavor',"成犬干粮|Crocchette Cane Adulto;幼猫干粮|Crocchette Gattino;猫湿粮罐头|Umido per Gatti;狗狗零食|Snack per Cani;猫条|Snack Cremoso Gatto"],
+];
+const BASE_CATS = CAT_DEFS.map(d => ({ code:d[0], zh:d[1], desc:d[2], group:d[3], prefix:d[4], mean:d[5], pools:[d[6], d[7]], bases:pairs(d[8]) }));
+
+/* ============ 演示数据生成（固定种子，每次打开结果一致） ============ */
+function mulberry32(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function generateDemo(){
+  const rnd = mulberry32(20260920);
+  const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+  const out = [];
+  BASE_CATS.forEach(c => {
+    const A = POOLS[c.pools[0]], B = POOLS[c.pools[1]];
+    const baseOff = c.bases.map(() => gauss() * 0.09);
+    const combos = [];
+    c.bases.forEach((_, bi) => A.forEach(a => B.forEach(b => combos.push([bi, a, b]))));
+    for (let i = combos.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [combos[i], combos[j]] = [combos[j], combos[i]]; }
+    const n = Math.min(combos.length, 40 + Math.floor(rnd() * 80));
+    let num = 100 + Math.floor(rnd() * 400);
+    for (let i = 0; i < n; i++) {
+      const [bi, a, b] = combos[i], base = c.bases[bi];
+      const target = Math.min(0.94, Math.max(0.01, c.mean + baseOff[bi] + gauss() * 0.15));
+      const W = 4 + Math.floor(Math.pow(rnd(), 0.8) * 33);
+      let bits = '', k = 0;
+      for (let w = 0; w < W; w++) { const hit = rnd() < target; bits += hit ? '1' : '0'; if (hit) k++; }
+      num += 1 + Math.floor(rnd() * 3);
+      out.push({ sku:`${c.prefix}-${String(num).padStart(4, '0')}`, zh:`${base[0]} ${a[0]} ${b[0]}`, it:`${base[1]} ${a[1]} ${b[1]}`, cat:c.code, W, k, p:k / W, bits });
+    }
+  });
+  return out;
+}
+
+/* ============ 状态 ============ */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const fmt = n => n.toLocaleString('zh-CN');
+const pct1 = p => (Math.round(p * 1000) / 10).toFixed(1);
+const lenCls = s => s.length >= 3 ? 'l3' : s.length === 2 ? 'l2' : '';
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const validTh = t => Array.isArray(t) && t.length === 4 && t.every(v => typeof v === 'number' && v >= 0 && v <= 100) && t[0] > t[1] && t[1] > t[2] && t[2] > t[3];
+
+let DEMO = null;
+const state = {
+  products: [], sorted: [], bySku: new Map(), cats: new Map(), source: null,
+  th: validTh(store.get('petTier.th')) ? store.get('petTier.th') : DEFAULT_TH.slice(),
+  view: 'board', cat: 'all', tier: 'all', q: '', sort: 'p-desc', page: 1,
+  shown: [BOARD_FIRST, BOARD_FIRST, BOARD_FIRST, BOARD_FIRST, BOARD_FIRST],
+};
+
+function tierOf(p){ const v = Math.round(p * 10000) / 100; for (let i = 0; i < 4; i++) if (v >= state.th[i]) return i; return 4; }
+const cmpP = (a, b) => b.p - a.p || (b.W || 0) - (a.W || 0) || a.sku.localeCompare(b.sku);
+
+function setProducts(list, cats){
+  state.cats = cats;
+  state.products = list;
+  list.forEach(x => {
+    const c = cats.get(x.cat);
+    x.search = `${x.sku} ${x.zh} ${x.it || ''} ${x.cat} ${c ? c.zh : ''}`.toLowerCase();
+  });
+  state.bySku = new Map(list.map(x => [x.sku, x]));
+  if (state.cat !== 'all' && !cats.has(state.cat)) state.cat = 'all';
+  retier();
+  buildCatSelect();
+}
+function retier(){
+  state.products.forEach(x => x.t = tierOf(x.p));
+  state.sorted = [...state.products].sort(cmpP);
+  const seen = {};
+  state.sorted.forEach((x, i) => { x.rank = i + 1; x.crank = seen[x.cat] = (seen[x.cat] || 0) + 1; });
+  state.catSize = seen;
+}
+function filtered(ignoreTier){
+  const q = state.q.trim().toLowerCase();
+  const terms = q ? q.split(/\s+/) : [];
+  return state.sorted.filter(x =>
+    (state.cat === 'all' || x.cat === state.cat) &&
+    (ignoreTier || state.tier === 'all' || x.t === +state.tier) &&
+    terms.every(t => x.search.includes(t)));
+}
+
+/* ============ 渲染 ============ */
+const el = id => document.getElementById(id);
+
+function renderEyebrow(){
+  const src = state.source
+    ? `<span class="tag src">导入数据 · ${esc(state.source.name)}</span><button class="linkbtn" data-act="reset-demo">恢复演示数据</button>`
+    : `<span class="tag">演示数据 · 模拟生成</span>`;
+  el('eyebrow').innerHTML = `<span>订单数据分级</span><span>数据截至 ${DATA_AS_OF}</span>${src}`;
+}
+
+function renderDist(){
+  const list = filtered(true);
+  const counts = [0, 0, 0, 0, 0];
+  list.forEach(x => counts[x.t]++);
+  const total = list.length;
+  const scope = state.cat === 'all' ? '全部分类' : (state.cats.get(state.cat)?.zh || state.cat);
+  el('dist').innerHTML = `
+    <div class="dist-head">
+      <div class="dist-total">${fmt(total)}<small>款产品</small></div>
+      <div class="dist-scope">${esc(scope)}${state.q ? ` · 搜索“${esc(state.q)}”` : ''}</div>
+    </div>
+    <div class="stack" role="group" aria-label="各评级数量占比">
+      ${counts.map((n, i) => n ? `<button class="t${i}" style="flex:${n} 1 0" data-act="tier" data-t="${i}" title="${TIERS[i].name}：${fmt(n)} 款" aria-label="${TIERS[i].name} ${n} 款"></button>` : '').join('')}
+    </div>
+    <div class="legend">
+      ${counts.map((n, i) => `
+        <button class="lg t${i}" data-act="tier" data-t="${i}" aria-pressed="${state.tier === String(i)}">
+          <span class="lg-name">${TIERS[i].name}</span>
+          <span class="lg-n">${fmt(n)}</span>
+          <span class="lg-p">${total ? (n / total * 100).toFixed(1) : '0.0'}%</span>
+        </button>`).join('')}
+    </div>`;
+}
+
+function renderContext(n){
+  const bits = [];
+  if (state.cat !== 'all') bits.push(`分类：${esc(state.cats.get(state.cat)?.zh || state.cat)}`);
+  if (state.tier !== 'all') bits.push(`评级：${TIERS[+state.tier].name}`);
+  if (state.q) bits.push(`关键词：“${esc(state.q)}”`);
+  const label = { board:'分级榜', table:'明细表', cats:'分类对比' }[state.view];
+  if (state.view === 'cats') {
+    el('context').innerHTML = `<span>共 <b>${state.cats.size}</b> 个分类，按平均下单概率排序。点击分类可查看它的分级榜。</span>`;
+    return;
+  }
+  el('context').innerHTML = `<span>${label} · 显示 <b>${fmt(n)}</b> 款${bits.length ? ' · ' + bits.join(' · ') : ''}</span>` +
+    (bits.length ? `<button class="linkbtn" data-act="clear">清除筛选</button>` : '');
+}
+
+function rangeText(i){
+  const t = state.th;
+  if (i === 0) return `≥ ${t[0]}%`;
+  if (i === 4) return `< ${t[3]}%`;
+  return `${t[i]}–${t[i - 1]}%`;
+}
+
+function tile(x){
+  const c = state.cats.get(x.cat);
+  return `<button class="tile t${x.t}" data-sku="${esc(x.sku)}" type="button">
+    <span class="ico">${svg(c?.group)}</span>
+    <span><span class="tile-name">${esc(x.zh)}</span><span class="tile-meta"><span class="mono">#${x.rank} · ${esc(x.sku)}</span> · ${esc(c?.zh || x.cat)}</span></span>
+    <span class="tile-p">${pct1(x.p)}<small>%</small></span>
+    <span class="meter"><i style="width:${Math.max(1, x.p * 100)}%"></i></span>
+  </button>`;
+}
+
+function renderBoard(list){
+  const byTier = [[], [], [], [], []];
+  list.forEach(x => byTier[x.t].push(x));
+  const tiers = state.tier === 'all' ? [0, 1, 2, 3, 4] : [+state.tier];
+  el('view-board').innerHTML = tiers.map(i => {
+    const items = byTier[i], shown = Math.min(items.length, state.shown[i]);
+    const avg = items.length ? items.reduce((s, x) => s + x.p, 0) / items.length : 0;
+    const rest = items.length - shown;
+    return `<section class="row t${i}" id="tier-${i}" aria-label="${TIERS[i].name}">
+      <div class="row-label">
+        <span class="glyph ${lenCls(TIERS[i].name)}">${TIERS[i].name}</span>
+        <span class="row-range">${rangeText(i)}</span>
+        <span class="row-count">${fmt(items.length)} 款</span>
+      </div>
+      <div class="row-body">
+        <p class="row-note"><span>${TIERS[i].note}</span>${items.length ? `<span>本级平均 <span class="mono">${pct1(avg)}%</span></span>` : ''}</p>
+        ${items.length ? `<div class="grid">${items.slice(0, shown).map(tile).join('')}</div>` : `<div class="empty">当前筛选下没有该评级的产品。</div>`}
+        ${(rest > 0 || shown > BOARD_FIRST) ? `<div class="more">
+          ${rest > 0 ? `<button class="btn btn-sm" data-act="more" data-t="${i}">再显示 ${Math.min(rest, BOARD_STEP)} 款（还有 ${fmt(rest)} 款）</button>` : ''}
+          ${shown > BOARD_FIRST ? `<button class="btn btn-sm" data-act="less" data-t="${i}">收起</button>` : ''}
+        </div>` : ''}
+      </div>
+    </section>`;
+  }).join('');
+}
+
+function sortedForTable(list){
+  const s = state.sort;
+  if (s === 'p-desc') return list;
+  const a = list.slice();
+  if (s === 'p-asc') a.sort((x, y) => x.p - y.p || (y.W || 0) - (x.W || 0) || x.sku.localeCompare(y.sku));
+  else if (s === 'w-desc') a.sort((x, y) => (y.W || 0) - (x.W || 0) || cmpP(x, y));
+  else a.sort((x, y) => x.sku.localeCompare(y.sku));
+  return a;
+}
+
+function renderTable(list){
+  const rows = sortedForTable(list);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  state.page = Math.min(state.page, pages);
+  const start = (state.page - 1) * PAGE_SIZE;
+  const hasW = rows.some(x => x.W);
+  el('view-table').innerHTML = `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th class="num">排名</th><th>产品</th><th>编码</th><th>分类</th>
+        ${hasW ? '<th class="num">有单周期 / 总周期</th>' : ''}
+        <th class="num">30 天下单概率</th><th>评级</th>
+      </tr></thead>
+      <tbody>
+      ${rows.slice(start, start + PAGE_SIZE).map(x => {
+        const c = state.cats.get(x.cat);
+        return `<tr class="t${x.t}" data-sku="${esc(x.sku)}" tabindex="0">
+          <td class="num">${x.rank}</td>
+          <td>${esc(x.zh)}${x.it ? `<span class="sub it">${esc(x.it)}</span>` : ''}</td>
+          <td class="mono">${esc(x.sku)}</td>
+          <td>${esc(c?.zh || x.cat)}<span class="sub mono">${esc(x.cat)}</span></td>
+          ${hasW ? `<td class="num">${x.W ? `${x.k} / ${x.W}${x.W < FEW_WINDOWS ? '<span class="few">样本少</span>' : ''}` : '—'}</td>` : ''}
+          <td><div class="pbar"><span class="track"><i style="width:${x.p * 100}%"></i></span><span class="num">${pct1(x.p)}%</span></div></td>
+          <td><span class="pill">${TIERS[x.t].name}</span></td>
+        </tr>`;
+      }).join('') || `<tr><td colspan="7" class="empty">没有符合条件的产品。</td></tr>`}
+      </tbody>
+    </table></div>
+    <div class="pager">
+      <span>第 ${fmt(rows.length ? start + 1 : 0)}–${fmt(Math.min(start + PAGE_SIZE, rows.length))} 款，共 ${fmt(rows.length)} 款</span>
+      <div>
+        <button class="btn btn-sm" data-act="page" data-d="-1" ${state.page <= 1 ? 'disabled' : ''}>上一页</button>
+        <span class="mono">${state.page} / ${pages}</span>
+        <button class="btn btn-sm" data-act="page" data-d="1" ${state.page >= pages ? 'disabled' : ''}>下一页</button>
+      </div>
+    </div>`;
+}
+
+function renderCats(){
+  const agg = new Map();
+  state.products.forEach(x => {
+    let a = agg.get(x.cat);
+    if (!a) agg.set(x.cat, a = { n:0, sum:0, t:[0, 0, 0, 0, 0] });
+    a.n++; a.sum += x.p; a.t[x.t]++;
+  });
+  const rows = [...agg.entries()].map(([code, a]) => ({ code, ...a, avg: a.sum / a.n, hot: (a.t[0] + a.t[1]) / a.n }))
+    .sort((a, b) => b.avg - a.avg);
+  el('view-cats').innerHTML = `<div class="cats">
+    <div class="cat-head"><span>分类</span><span class="num">款数</span><span class="num">平均概率</span><span>评级构成（夯 → 拉完了）</span><span class="num hot-col">夯 + 顶级</span></div>
+    ${rows.map(r => {
+      const c = state.cats.get(r.code);
+      return `<button class="cat-row" data-act="cat" data-cat="${esc(r.code)}" type="button">
+        <span class="cat-name"><span class="ico">${svg(c?.group)}</span><span>${esc(c?.zh || r.code)}<span class="cat-code">${esc(r.code)}</span></span></span>
+        <span class="num">${fmt(r.n)}</span>
+        <span class="num">${pct1(r.avg)}%</span>
+        <span class="cstack">${r.t.map((n, i) => n ? `<span class="t${i}" style="flex:${n} 1 0" title="${TIERS[i].name}：${n} 款">${n / r.n >= .09 ? n : ''}</span>` : '').join('')}</span>
+        <span class="num hot hot-col">${(r.hot * 100).toFixed(0)}%</span>
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
+function buildCatSelect(){
+  const byGroup = {};
+  state.cats.forEach(c => (byGroup[c.group] ||= []).push(c));
+  el('fCat').innerHTML = `<option value="all">全部分类（${state.cats.size}）</option>` +
+    Object.keys(GROUPS).filter(g => byGroup[g]).map(g =>
+      `<optgroup label="${GROUPS[g]}">${byGroup[g].map(c => `<option value="${esc(c.code)}">${esc(c.zh)} · ${esc(c.code)}</option>`).join('')}</optgroup>`).join('');
+  el('fCat').value = state.cat;
+}
+
+function renderFootTh(){
+  el('footTh').textContent = TIERS.map((t, i) => `${t.name} ${rangeText(i)}`).join('；') + '。可在“评级规则”中调整。';
+}
+
+function render(){
+  const list = filtered(false);
+  renderEyebrow();
+  renderDist();
+  renderContext(list.length);
+  ['board', 'table', 'cats'].forEach(v => el('view-' + v).hidden = state.view !== v);
+  document.querySelectorAll('[data-act="view"]').forEach(b => b.setAttribute('aria-selected', b.dataset.v === state.view));
+  el('fSort').hidden = state.view !== 'table';
+  if (state.view === 'board') renderBoard(list);
+  else if (state.view === 'table') renderTable(list);
+  else renderCats();
+  el('fTier').value = state.tier;
+  el('fCat').value = state.cat;
+  renderFootTh();
+}
+
+/* ============ 产品详情 ============ */
+function monthLabel(offsetDays){
+  const d = new Date(DATA_AS_OF + 'T00:00:00');
+  d.setDate(d.getDate() - offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function openDetail(sku){
+  const x = state.bySku.get(sku);
+  if (!x) return;
+  const c = state.cats.get(x.cat), T = TIERS[x.t], th = state.th;
+  const total = state.products.length, catN = state.catSize[x.cat];
+  const top = (x.rank / total * 100);
+  let hint = '';
+  if (x.W) {
+    const up = x.t > 0 ? th[x.t - 1] / 100 : null, down = x.t < 4 ? th[x.t] / 100 : null;
+    const lines = [];
+    if (up !== null) {
+      const h = Math.max(1, Math.ceil((up * x.W - x.k) / (1 - up) - 1e-9));
+      lines.push(`距 <b>${TIERS[x.t - 1].name}</b> 还差 <span class="mono">${(th[x.t - 1] - x.p * 100).toFixed(1)}</span> 个百分点：接下来连续 <b class="mono">${h}</b> 个周期都有订单即可升级。`);
+    } else lines.push('已是最高评级。');
+    if (down !== null) {
+      const m = Math.floor(x.k / down - x.W) + 1;
+      lines.push(m <= 1 ? `下一个周期若无订单，将降至 <b>${TIERS[x.t + 1].name}</b>。` : `若接下来连续 <b class="mono">${m}</b> 个周期都没有订单，将降至 <b>${TIERS[x.t + 1].name}</b>。`);
+    }
+    if (x.W < FEW_WINDOWS) lines.push('在售周期较少，评级仅供参考。');
+    hint = `<div class="hint">${lines.map(l => `<div>${l}</div>`).join('')}</div>`;
+  } else if (x.t > 0) {
+    hint = `<div class="hint"><div>距 <b>${TIERS[x.t - 1].name}</b> 还差 <span class="mono">${(th[x.t - 1] - x.p * 100).toFixed(1)}</span> 个百分点。</div></div>`;
+  }
+  const cells = x.bits ? `<div>
+      <p class="d-label">逐周期记录 · 左早右近，每格 30 天</p>
+      <div class="cells">${[...x.bits].map((b, i) => `<i class="${b === '1' ? 'on' : ''}" title="第 ${i + 1} 个周期：${b === '1' ? '有订单' : '无订单'}"></i>`).join('')}</div>
+      <div class="cells-key"><span><i class="on"></i>有订单</span><span><i></i>无订单</span></div>
+    </div>` : '';
+  const dlg = el('detail');
+  dlg.className = `sheet t${x.t}`;
+  dlg.innerHTML = `
+    <div class="d-head">
+      <div class="d-badge ${lenCls(T.name)}">${T.name}</div>
+      <div><h2 class="d-name">${esc(x.zh)}</h2>${x.it ? `<p class="d-it">${esc(x.it)}</p>` : ''}</div>
+      <button class="x" data-act="close" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="d-body">
+      <div>
+        <p class="d-label">30 天下单概率</p>
+        <div class="d-big"><b>${pct1(x.p)}</b><span>%</span></div>
+        ${x.W ? `<p class="d-sub">在售 ${x.W} 个周期中，有 ${x.k} 个周期出现订单。</p>` : ''}
+      </div>
+      <dl class="kv">
+        <div><dt>全站排名</dt><dd class="mono">#${fmt(x.rank)} / ${fmt(total)}<small>前 ${top < 1 ? Math.max(0.1, top).toFixed(1) : Math.ceil(top)}%</small></dd></div>
+        <div><dt>分类内排名</dt><dd class="mono">#${x.crank} / ${catN}<small>${esc(c?.zh || x.cat)}</small></dd></div>
+        <div><dt>产品编码</dt><dd class="mono">${esc(x.sku)}</dd></div>
+        <div><dt>分类</dt><dd>${esc(c?.desc || c?.zh || x.cat)}<small class="mono">${esc(x.cat)}</small></dd></div>
+        ${x.W ? `<div><dt>在售时长</dt><dd>${x.W} 个周期<small>约自 ${monthLabel(x.W * 30)} 起</small></dd></div>` : ''}
+        <div><dt>评级</dt><dd>${T.name}<small>${rangeText(x.t)}</small></dd></div>
+      </dl>
+      ${cells}
+      ${hint}
+    </div>`;
+  if (!dlg.open) dlg.showModal();
+  dlg.querySelector('.x').focus();
+}
+
+/* ============ 评级规则 ============ */
+function openRules(values){
+  const v = values || state.th;
+  el('thList').innerHTML = TIERS.map((t, i) => i < 4
+    ? `<label class="th-row t${i}"><span class="pill">${t.name}</span><span>≥</span><span><input type="number" id="th${i}" min="0" max="100" step="0.5" value="${v[i]}" inputmode="decimal"> %</span></label>`
+    : `<div class="th-row t4"><span class="pill">${t.name}</span><span>&lt;</span><span class="mono" id="thLast">${v[3]} %</span></div>`).join('');
+  el('rulesMsg').textContent = '';
+  el('rulesMsg').className = 'msg';
+  el('rulesDlg').showModal();
+}
+el('rulesForm').addEventListener('input', () => { el('thLast').textContent = `${el('th3').value} %`; });
+el('rulesForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const t = [0, 1, 2, 3].map(i => parseFloat(el('th' + i).value));
+  if (!validTh(t)) {
+    el('rulesMsg').textContent = '请填写 0–100 之间的数值，并保证从夯到 NPC 依次减小。';
+    el('rulesMsg').className = 'msg err';
+    return;
+  }
+  state.th = t;
+  store.set('petTier.th', t);
+  retier();
+  state.shown = state.shown.map(() => BOARD_FIRST);
+  render();
+  el('rulesDlg').close();
+});
+
+/* ============ CSV 导入 ============ */
+const ALIAS = {
+  sku:['sku','code','编码','产品编码','货号','codice','articolo'],
+  zh:['name','name_zh','名称','产品名称','中文名称','中文名'],
+  it:['name_it','descrizione','意大利语名称','意大利语名','nome'],
+  cat:['category','categoria','分类','产品分类','类别'],
+  p:['probability','prob','p','概率','下单概率','30天下单概率','probabilità'],
+  w:['windows','周期数','在售周期','在售周期数','总周期数'],
+  k:['ordered_windows','hits','有单周期','有单周期数','下单周期数'],
+};
+const norm = s => String(s).trim().toLowerCase().replace(/^﻿/, '').replace(/[\s_\-()（）]/g, '');
+Object.keys(ALIAS).forEach(k => ALIAS[k] = ALIAS[k].map(norm));
+
+function parseCSV(text){
+  text = text.replace(/^﻿/, '');
+  const first = text.split(/\r?\n/, 1)[0];
+  const delim = [',', ';', '\t'].map(d => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === delim) { row.push(f); f = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += ch;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(v => v.trim() !== ''));
+}
+const num = s => { const v = parseFloat(String(s ?? '').replace('%', '').replace(',', '.').trim()); return Number.isFinite(v) ? v : NaN; };
+
+function importRows(rows, fname){
+  if (rows.length < 2) throw new Error('文件里没有数据行。');
+  const head = rows[0].map(norm);
+  const col = k => head.findIndex(h => ALIAS[k].includes(h));
+  const iS = col('sku'), iN = col('zh'), iI = col('it'), iC = col('cat'), iP = col('p'), iW = col('w'), iK = col('k');
+  if (iS < 0 && iN < 0) throw new Error('缺少产品编码（sku）或名称（name）列。');
+  if (iC < 0) throw new Error('缺少分类（category）列。');
+  if (iP < 0 && (iW < 0 || iK < 0)) throw new Error('缺少下单概率（probability）列，或周期数（windows）+ 有单周期数（ordered_windows）列。');
+
+  const cats = new Map();
+  const lookup = new Map();
+  BASE_CATS.forEach(c => { lookup.set(c.code.toUpperCase(), c); lookup.set(c.zh, c); });
+  const out = [], seen = new Set();
+  let skipped = 0;
+  rows.slice(1).forEach((r, idx) => {
+    const rawCat = String(r[iC] ?? '').trim();
+    let W = iW >= 0 ? Math.round(num(r[iW])) : NaN, K = iK >= 0 ? Math.round(num(r[iK])) : NaN, p;
+    if (Number.isFinite(W) && Number.isFinite(K) && W > 0 && K >= 0 && K <= W) p = K / W;
+    else {
+      W = K = null;
+      p = iP >= 0 ? num(r[iP]) : NaN;
+      if (Number.isFinite(p) && (p > 1 || String(r[iP]).includes('%'))) p /= 100;
+    }
+    if (!rawCat || !Number.isFinite(p) || p < 0 || p > 1) { skipped++; return; }
+    let sku = iS >= 0 ? String(r[iS] ?? '').trim() : '';
+    if (!sku) sku = `ROW-${idx + 2}`;
+    if (seen.has(sku)) { skipped++; return; }
+    seen.add(sku);
+    let c = lookup.get(rawCat.toUpperCase()) || lookup.get(rawCat);
+    if (!c) { c = { code: rawCat.toUpperCase(), zh: rawCat, desc: rawCat, group: 'other' }; lookup.set(c.code, c); }
+    cats.set(c.code, c);
+    out.push({ sku, zh: (iN >= 0 && String(r[iN] ?? '').trim()) || sku, it: iI >= 0 ? String(r[iI] ?? '').trim() : '', cat: c.code, W, k: K, p, bits: null });
+  });
+  if (!out.length) throw new Error('没有可用的数据行，请检查分类与概率列是否填写。');
+  state.source = { name: fname, count: out.length };
+  resetView();
+  setProducts(out, orderCats(cats));
+  return { n: out.length, skipped };
+}
+function orderCats(map){
+  const order = Object.keys(GROUPS);
+  return new Map([...map.entries()].sort((a, b) => order.indexOf(a[1].group) - order.indexOf(b[1].group)));
+}
+function resetView(){
+  state.cat = 'all'; state.tier = 'all'; state.q = ''; state.page = 1;
+  state.shown = state.shown.map(() => BOARD_FIRST);
+  el('fQ').value = '';
+}
+function loadDemo(){
+  DEMO ||= generateDemo();
+  state.source = null;
+  resetView();
+  setProducts(DEMO, new Map(BASE_CATS.map(c => [c.code, c])));
+}
+function readFile(file, enc){
+  return new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => fail(r.error); r.readAsText(file, enc); });
+}
+el('fileIn').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const msg = el('importMsg');
+  try {
+    let text = await readFile(file, 'utf-8');
+    if (text.includes('�')) text = await readFile(file, 'gbk');
+    const res = importRows(parseCSV(text), file.name);
+    msg.className = 'msg';
+    msg.textContent = `已导入 ${fmt(res.n)} 款产品${res.skipped ? `，跳过 ${res.skipped} 行（缺少分类、概率无效或编码重复）` : ''}。`;
+    el('resetDemoBtn').hidden = false;
+    render();
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = `导入失败：${err.message}`;
+  }
+  e.target.value = '';
+});
+
+/* ============ 交互 ============ */
+function setView(v){
+  state.view = v;
+  try { history.replaceState(null, '', '#' + v); } catch {}
+  render();
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]');
+  if (a) {
+    const act = a.dataset.act;
+    if (act === 'view') setView(a.dataset.v);
+    else if (act === 'tier') {
+      const t = a.dataset.t;
+      state.tier = state.tier === t ? 'all' : t;
+      state.page = 1;
+      render();
+    }
+    else if (act === 'more') { state.shown[+a.dataset.t] += BOARD_STEP; render(); }
+    else if (act === 'less') {
+      const i = +a.dataset.t;
+      state.shown[i] = BOARD_FIRST;
+      render();
+      el('tier-' + i)?.scrollIntoView({ block: 'start' });
+    }
+    else if (act === 'page') { state.page += +a.dataset.d; render(); el('view-table').scrollIntoView({ block: 'start' }); window.scrollBy(0, -80); }
+    else if (act === 'cat') { state.cat = a.dataset.cat; state.tier = 'all'; state.shown = state.shown.map(() => BOARD_FIRST); setView('board'); window.scrollTo({ top: 0 }); }
+    else if (act === 'clear') { state.cat = 'all'; state.tier = 'all'; state.q = ''; el('fQ').value = ''; state.page = 1; state.shown = state.shown.map(() => BOARD_FIRST); render(); }
+    else if (act === 'rules') openRules();
+    else if (act === 'th-default') openRules(DEFAULT_TH);
+    else if (act === 'import') { el('importMsg').textContent = ''; el('resetDemoBtn').hidden = !state.source; el('importDlg').showModal(); }
+    else if (act === 'reset-demo') { loadDemo(); render(); el('resetDemoBtn').hidden = true; el('importMsg').className = 'msg'; el('importMsg').textContent = '已恢复演示数据。'; }
+    else if (act === 'copy-tpl') {
+      const text = el('tpl').textContent;
+      const done = () => { el('importMsg').className = 'msg'; el('importMsg').textContent = '示例已复制，可粘贴到 Excel 或文本编辑器中参考。'; };
+      const fallback = () => { const r = document.createRange(); r.selectNodeContents(el('tpl')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); el('importMsg').textContent = '已选中示例文本，请按 Ctrl+C 复制。'; };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch { fallback(); }
+    }
+    else if (act === 'close') a.closest('dialog')?.close();
+    return;
+  }
+  const s = e.target.closest('[data-sku]');
+  if (s) openDetail(s.dataset.sku);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('tr[data-sku]')) openDetail(e.target.dataset.sku);
+});
+document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+
+el('fCat').addEventListener('change', e => { state.cat = e.target.value; state.page = 1; state.shown = state.shown.map(() => BOARD_FIRST); render(); });
+el('fTier').addEventListener('change', e => { state.tier = e.target.value; state.page = 1; render(); });
+el('fSort').addEventListener('change', e => { state.sort = e.target.value; state.page = 1; render(); });
+let qTimer;
+el('fQ').addEventListener('input', e => {
+  clearTimeout(qTimer);
+  qTimer = setTimeout(() => { state.q = e.target.value.trim(); state.page = 1; state.shown = state.shown.map(() => BOARD_FIRST); render(); }, 150);
+});
+
+/* ============ 启动 ============ */
+loadDemo();
+const h = (location.hash || '').slice(1);
+if (['board', 'table', 'cats'].includes(h)) state.view = h;
+render();
+})();
+</script>
+</body>
+</html>
