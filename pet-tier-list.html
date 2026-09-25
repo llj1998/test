@@ -896,7 +896,7 @@ el('fileIn').addEventListener('change', async e => {
   const msg = el('importMsg');
   try {
     let text = await readFile(file, 'utf-8');
-    if (text.includes('�')) text = await readFile(file, 'gbk');
+    if (text.includes('\uFFFD')) text = await readFile(file, 'gbk');
     const res = importRows(parseCSV(text), file.name);
     msg.className = 'msg';
     msg.textContent = `已导入 ${fmt(res.n)} 款产品${res.skipped ? `，跳过 ${res.skipped} 行（缺少分类、概率无效或编码重复）` : ''}。`;
