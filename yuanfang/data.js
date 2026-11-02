@@ -1,10 +1,14 @@
-/* 远方清单 · 演示数据
-   全部为示例内容，用来展示界面；对应后端表：places / trips → trip_days → trip_items / materials / memories / ai_configs。
-   演示用"今天"固定为 2026-11-02，保证倒计时等文字前后一致。 */
+/* 远方清单 · 示例数据
+   第一次打开时载入，之后你的改动会存在本机浏览器里（localStorage）。设置页可以清空、导出、导入。
+   结构对应后端表：places / trips → trip_days → trip_items / materials / memories / ai_configs。
+   日期都是真实日期：行程状态（草拟 / 计划中 / 进行中 / 已完成）由日期推算，不单独存。 */
 
 window.DATA = {
-  today: '2026-11-02',
-  home: { city: '上海', code: '沪', lat: 31.2304, lng: 121.4737 },
+  version: 3,
+  sample: true,
+  home: { city: '上海', lat: 31.2304, lng: 121.4737 },
+  snoozed: {},
+  prefs: {},
 
   /* 想去地点库 · places
      state   want 想去 / plan 计划中 / been 已去过；dropped=true 表示"不想去了"（归档，不删除）
@@ -24,7 +28,7 @@ window.DATA = {
     { id: 'sintra', name: '辛特拉 · 佩纳宫', city: '辛特拉', country: '葡萄牙', area: '里斯本', type: '建筑', want: 4, tags: ['彩色城堡', '一日游'], lat: 38.7876, lng: -9.3906, state: 'want', art: 'domes', c: ['#F1E2C4', '#7A3B1F', '#D3684A'], added: '2026-10-09', season: [4, 5, 9, 10], seasonNote: '和里斯本一起，留一整天', note: '从里斯本坐火车 40 分钟。' },
     { id: 'angkor', name: '吴哥窟', city: '暹粒', country: '柬埔寨', area: '吴哥', type: '建筑', want: 4, tags: ['日出', '倒影'], lat: 13.4125, lng: 103.867, state: 'want', art: 'towers', c: ['#E8D6E6', '#4F2650', '#B784AE'], added: '2026-02-11', season: [11, 12, 1, 2], seasonNote: '11–2 月旱季，日出最稳', note: '在吴哥窟前的水池看一次日出倒影。' },
     { id: 'tekapo', name: '特卡波湖', city: '南岛', country: '新西兰', area: '新西兰南岛', type: '自然', want: 5, tags: ['星空', '鲁冰花'], lat: -44.0046, lng: 170.4775, state: 'want', art: 'mountains', stars: true, c: ['#CDD7EE', '#20366E', '#6E87C6'], added: '2026-10-29', season: [11, 12], seasonNote: '鲁冰花 11 月中开到 12 月', note: '想在好牧羊人教堂前拍一次银河。', src: { from: '小红书', title: '特卡波湖星空摄影参数分享' } },
-    { id: 'istanbul', name: '伊斯坦布尔', city: '伊斯坦布尔', country: '土耳其', area: '伊斯坦布尔', type: '城市', want: 4, tags: ['清真寺', '渡轮'], lat: 41.0082, lng: 28.9784, state: 'want', art: 'domes', c: ['#D5E6EA', '#1F4656', '#7FB1BE'], added: '2026-07-01', season: [4, 5, 9, 10], seasonNote: '春秋；4 月有郁金香节', note: '傍晚坐渡轮过博斯普鲁斯海峡。' },
+    { id: 'istanbul', name: '伊斯坦布尔', city: '伊斯坦布尔', country: '土耳其', area: '伊斯坦布尔', type: '城市', want: 4, tags: ['清真寺', '渡轮'], lat: 41.0082, lng: 28.9784, state: 'want', art: 'domes', c: ['#D5E6EA', '#1F4656', '#7FB1BE'], added: '2025-07-01', season: [4, 5, 9, 10], seasonNote: '春秋；4 月有郁金香节', note: '傍晚坐渡轮过博斯普鲁斯海峡。' },
     { id: 'sagrada', name: '圣家堂', city: '巴塞罗那', country: '西班牙', area: '巴塞罗那', type: '建筑', want: 5, tags: ['高迪', '彩窗'], lat: 41.4036, lng: 2.1744, state: 'been', been: '2024-05-03', trip: 'barcelona', art: 'spires', c: ['#F2E0B9', '#774711', '#D9A44C'], added: '2023-11-20', season: [] },
     { id: 'boqueria', name: '波盖利亚市场', city: '巴塞罗那', country: '西班牙', area: '巴塞罗那', type: '餐馆', want: 4, tags: ['火腿', '果汁'], lat: 41.3817, lng: 2.1716, state: 'been', been: '2024-05-02', trip: 'barcelona', art: 'fruits', c: ['#F3D3C3', '#8F2C1D', '#E59B49'], added: '2023-11-20', season: [] },
     { id: 'chiangmai', name: '清迈古城', city: '清迈', country: '泰国', area: '清迈', type: '城市', want: 3, tags: ['寺庙', '夜市'], lat: 18.7883, lng: 98.9853, state: 'been', been: '2025-01-18', art: 'stupa', c: ['#F2E2BE', '#6F3F12', '#D59A3E'], added: '2024-10-02', season: [] },
@@ -43,8 +47,8 @@ window.DATA = {
   /* 旅行计划 · trips → trip_days → trip_items，资料库 materials 挂在旅行下面 */
   trips: [
     {
-      id: 'kyoto', title: '京都 · 大阪', subtitle: '红叶七日', area: '关西', start: '2026-11-20', end: '2026-11-26', status: 'plan',
-      progress: 68, budget: 14000, spent: 8460, people: '我、小林',
+      id: 'kyoto', title: '京都 · 大阪', subtitle: '红叶七日', area: '关西', start: '2026-11-20', end: '2026-11-26', slogan: '去京都看红叶',
+      cur: '円', budget: 14000, people: '我、小林',
       leg: { from: ['PVG', '上海浦东', '11.20 09:40'], to: ['KIX', '大阪关西', '13:05'], via: 'MU729 · 2 小时 25 分' },
       days: [
         { n: 1, date: '11.20', wd: '周五', title: '飞大阪', items: [
@@ -82,6 +86,10 @@ window.DATA = {
           { t: '14:20', kind: '交通', title: 'MU730 关西 → 浦东', note: '16:05 到上海', tag: ['ok', '已订'], booking: 0 }
         ] }
       ],
+      expenses: [
+        { date: '2026-11-22', t: '06:12', cat: '交通', what: '京阪电车 祇园四条 → 伏见稻荷', amount: 220 },
+        { date: '2026-11-22', t: '07:55', cat: '吃饭', what: '稻荷寿司 + 狐狸乌冬', amount: 1350 }
+      ],
       materials: {
         prep: [
           { text: '日本单次旅游签证', done: true },
@@ -89,8 +97,8 @@ window.DATA = {
           { text: '永观堂夜枫预约', done: true, meta: '11.01 已抢到 2 张' },
           { text: '买旅行保险', done: true },
           { text: 'iPhone 钱包添加 ICOCA', done: true },
-          { text: '抢嵯峨野小火车 14:02 那班', done: false, due: '明天 10:00' },
-          { text: '下载关西离线地图', done: false },
+          { text: '抢嵯峨野小火车 14:02 那班', done: false, due: '2026-11-03 10:00' },
+          { text: '下载关西离线地图', done: false, due: '2026-11-18' },
           { text: '定先斗町的晚饭', done: false },
           { text: '列给妈妈带的御守清单', done: false }
         ],
@@ -113,8 +121,8 @@ window.DATA = {
       }
     },
     {
-      id: 'weekend', title: '西区咖啡散步', subtitle: '本周六', area: '上海', start: '2026-11-07', end: '2026-11-07', status: 'plan', local: true,
-      progress: 40, budget: 300, spent: 0, people: '我',
+      id: 'weekend', title: '西区咖啡散步', subtitle: '本周六', area: '上海', start: '2026-11-07', end: '2026-11-07', local: true, slogan: '去武康路喝咖啡',
+      cur: '¥', budget: 300, people: '我',
       leg: { from: ['衡山', '衡山路站', '10:00'], to: ['安福', '安福路', '16:00'], via: '步行 · 约 6 公里' },
       days: [
         { n: 1, date: '11.07', wd: '周六', title: '衡山路 → 武康路 → 安福路', items: [
@@ -124,15 +132,15 @@ window.DATA = {
         ] }
       ],
       materials: {
-        prep: [{ text: '带胶片相机，装好一卷 Portra 400', done: true }, { text: '查一下周六会不会下雨', done: false }],
+        prep: [{ text: '带胶片相机，装好一卷 Portra 400', done: true }, { text: '查一下周六会不会下雨', done: false, due: '2026-11-06' }],
         guide: [{ src: '小红书', title: '2026 秋 · 武康路咖啡地图（实测 14 家）', by: '@梧桐区', saved: '10.20' }],
         booking: [],
         note: ['半层咖啡周六 9:30 开门，10 点前到。']
       }
     },
     {
-      id: 'iceland', title: '冰岛 · 一号公路', subtitle: '环岛十日', area: '冰岛', start: '2027-02', end: '', status: 'draft',
-      progress: 12, budget: 36000, spent: 0, people: '我、小林',
+      id: 'iceland', title: '冰岛 · 一号公路', subtitle: '环岛十日', area: '冰岛', start: '2027-02', end: '', slogan: '去冰岛看极光',
+      cur: 'kr', budget: 36000, people: '我、小林',
       leg: { from: ['PVG', '上海浦东', '日期待定'], to: ['KEF', '雷克雅未克', ''], via: '经赫尔辛基转机' },
       days: [],
       materials: {
@@ -146,8 +154,8 @@ window.DATA = {
       }
     },
     {
-      id: 'barcelona', title: '巴塞罗那', subtitle: '五月的六天', area: '巴塞罗那', start: '2024-05-01', end: '2024-05-06', status: 'done',
-      progress: 100, budget: 9800, spent: 10420, people: '我',
+      id: 'barcelona', title: '巴塞罗那', subtitle: '五月的六天', area: '巴塞罗那', start: '2024-05-01', end: '2024-05-06',
+      cur: '€', budget: 9800, spent: 10420, people: '我',
       leg: { from: ['PVG', '上海浦东', '05.01 00:20'], to: ['BCN', '巴塞罗那', '08:45'], via: '经伊斯坦布尔转机' },
       days: [
         { n: 2, date: '05.02', wd: '周四', title: '老城', items: [
@@ -171,16 +179,8 @@ window.DATA = {
     { place: 'boqueria', date: '2024-05-02', rating: 4, cost: '€18', costCny: 142, photos: 9, note: '火腿切片配一杯百香果汁，边走边吃。下次空着肚子来。' }
   ],
 
-  /* 出发当天的样子：假设已经到了 11.22，红叶七日的第 3 天 */
-  todaySim: {
-    date: '2026-11-22', now: '10:34', trip: 'kyoto', day: 3, weather: '晴 · 8–16°C',
-    done: { 0: '06:41' },
-    rate: 0.048,
-    spend: [
-      { t: '06:12', cat: '交通', what: '京阪电车 祇园四条 → 伏见稻荷', jpy: 220 },
-      { t: '07:55', cat: '吃饭', what: '稻荷寿司 + 狐狸乌冬', jpy: 1350 }
-    ]
-  },
+  /* 「今天」页的预览：出发前也能看看当天是什么样子（假设已经到了 11.22，红叶七日的第 3 天） */
+  todaySim: { date: '2026-11-22', now: '10:34', trip: 'kyoto', day: 3, weather: '晴 · 8–16°C', done: { 0: '06:41' } },
 
   /* AI 一键整理：示例输入与解析结果（match 表示识别出已存在的条目，写入时合并而不是重复创建） */
   aiSample: `小林 10:12
@@ -202,32 +202,31 @@ https://www.xiaohongshu.com/explore/6528f1… 这篇说伏见稻荷 6 点半去�
 小林 10:25
 可以，记得提前去排队。还有锦市场那家玉子烧一定要吃！`,
 
-  aiResult: {
-    trip: [
-      { field: '预算', from: '¥14,000', to: '¥16,000', value: 16000, why: '"酒店那边涨价了，预算估计要多两千"' }
-    ],
+  /* 模型按约定格式返回的样子；示例服务商直接用它，真实服务商的返回也走同一套解析和合并 */
+  aiDemo: {
+    trip_patch: { budget: 16000, reason: '酒店那边涨价了，预算估计要多两千' },
     places: [
-      { name: '南禅寺 · 水路阁', meta: '建筑 · 京都', match: 'nanzenji' },
-      { name: '鸟贵族 · 先斗町店', meta: '餐馆 · 京都 · 想去 3 分', type: '餐馆', art: 'bowl', c: ['#F4D6CF', '#8A2618', '#DD7B5E'] },
-      { name: '锦市场 · 玉子烧', meta: '餐馆 · 京都', match: 'nishiki' }
+      { name: '南禅寺 · 水路阁', city: '京都', country: '日本', type: '建筑', want: 4, tags: ['红砖拱桥'], lat: 35.0113, lng: 135.7934, note: '清水寺看完顺路', local: false },
+      { name: '鸟贵族 · 先斗町店', city: '京都', country: '日本', type: '餐馆', want: 3, tags: ['烤鸡串', '要排队'], lat: 35.0068, lng: 135.7706, note: '第二天的晚饭', local: false },
+      { name: '锦市场', city: '京都', country: '日本', type: '餐馆', want: 4, tags: ['玉子烧'], lat: 35.005, lng: 135.7649, note: '那家玉子烧一定要吃', local: false }
     ],
     items: [
-      { day: 3, t: '15:30', title: '南禅寺 · 水路阁', note: '清水寺之后顺路', place: 'nanzenji', op: 'new' },
-      { day: 4, match: '嵯峨野小火车', note: '4 号车厢是露天的，抢 14:02 那班', op: 'upd' },
-      { day: 2, match: '先斗町 · 晚饭', title: '先斗町 · 鸟贵族', note: '提前去排队', op: 'upd' }
+      { day: 3, time: '15:30', title: '南禅寺 · 水路阁', note: '清水寺之后顺路', place: '南禅寺 · 水路阁', replaces: null },
+      { day: 4, time: '14:02', title: '嵯峨野小火车', note: '4 号车厢是露天的，抢 14:02 那班', place: null, replaces: '嵯峨野小火车' },
+      { day: 2, time: '19:00', title: '先斗町 · 鸟贵族', note: '提前去排队', place: '鸟贵族 · 先斗町店', replaces: '先斗町 · 晚饭' }
     ],
     materials: [
-      { cat: '准备', key: 'prep', title: '抢嵯峨野小火车 14:02 那班', note: '已有这项，补上开抢时间 11.03 10:00', match: true },
-      { cat: '攻略', key: 'guide', title: '伏见稻荷 6 点半去人最少', note: 'xiaohongshu.com/explore/6528f1…' },
-      { cat: '备注', key: 'note', title: '鸟贵族要提前排队', note: '' }
+      { kind: 'prep', title: '抢嵯峨野小火车 14:02 那班', due: '2026-11-03 10:00' },
+      { kind: 'guide', title: '伏见稻荷 6 点半去人最少', url: 'https://www.xiaohongshu.com/explore/6528f1', detail: '小林分享' },
+      { kind: 'note', title: '鸟贵族要提前去排队' }
     ],
     memories: []
   },
 
-  /* AI 服务商 · ai_configs（OpenAI 兼容接口） */
+  /* AI 服务商 · ai_configs（OpenAI 兼容接口）；demo=true 的是示例，没有真实密钥 */
   providers: [
-    { id: 'ds', name: 'DeepSeek', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', key: 'sk-••••••••••••a3f2', active: true, used: '今天 10:31 · 整理了 1 次' },
-    { id: 'qw', name: '通义千问', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', key: 'sk-••••••••••••91bc', active: false, used: '10.24 用过' },
-    { id: 'home', name: '家里的中转', base: 'http://192.168.1.20:3000/v1', model: 'gpt-4o-mini', key: 'sk-••••••••••••0d7e', active: false, used: '还没用过' }
+    { id: 'ds', name: 'DeepSeek', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', key: 'sk-••••••••••••a3f2', demo: true, active: true, used: '今天 10:31 · 整理了 1 次' },
+    { id: 'qw', name: '通义千问', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', key: 'sk-••••••••••••91bc', demo: true, active: false, used: '10.24 用过' },
+    { id: 'home', name: '家里的中转', base: 'http://192.168.1.20:3000/v1', model: 'gpt-4o-mini', key: 'sk-••••••••••••0d7e', demo: true, active: false, used: '还没用过' }
   ]
 };
