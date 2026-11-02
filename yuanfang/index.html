@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>远方清单</title>
+<meta name="description" content="把零散的「想去」逐步变成真的发生过的旅行。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Long+Cang&family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+XiaoWei&display=swap">
+<!-- ZCOOL XiaoWei 的「回」字轮廓有问题（显示成实心方块），只为这一个字补一份 Noto Serif SC -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500&text=%E5%9B%9E&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!--APP-->
+<svg class="sr-only" aria-hidden="true" focusable="false">
+  <!-- 印章边缘的毛糙 -->
+  <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <!-- 邮戳：抖动 + 着墨不均 -->
+  <filter id="ink" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="1" seed="7" result="grain"/>
+    <feDisplacementMap in="SourceGraphic" in2="grain" scale="1.6" xChannelSelector="R" yChannelSelector="G" result="shaky"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="2" result="blot"/>
+    <feColorMatrix in="blot" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -3.2 2.3" result="mask"/>
+    <feComposite in="shaky" in2="mask" operator="in"/>
+  </filter>
+</svg>
+
+<div class="app">
+  <aside class="spine">
+    <a class="brand" href="#home" aria-label="远方清单 · 总览">
+      <span class="seal" aria-hidden="true"><span>远方</span><span>清单</span></span>
+    </a>
+    <nav class="nav" aria-label="主导航">
+      <a href="#home" data-v="home"><span class="lbl">总览</span></a>
+      <a href="#places" data-v="places"><span class="lbl">想去</span><span class="n" data-n="places"></span></a>
+      <a href="#trip" data-v="trip"><span class="lbl">行程</span><span class="n" data-n="trip"></span></a>
+      <a href="#map" data-v="map"><span class="lbl">地图</span></a>
+      <a href="#memories" data-v="memories"><span class="lbl">回忆</span><span class="n" data-n="memories"></span></a>
+      <a href="#sort" data-v="sort"><span class="lbl">整理</span></a>
+      <a href="#providers" data-v="providers"><span class="lbl">设置</span></a>
+    </nav>
+    <div class="spine-foot">
+      <span class="date-v" id="date-v"></span>
+      <button class="add-stamp" data-open="wish" aria-label="记下一个想去" title="记下一个想去">+</button>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <section class="view" id="view-home" aria-label="总览"></section>
+    <section class="view" id="view-places" aria-label="想去" hidden></section>
+    <section class="view" id="view-trip" aria-label="行程" hidden></section>
+    <section class="view" id="view-map" aria-label="地图" hidden></section>
+    <section class="view" id="view-memories" aria-label="回忆" hidden></section>
+    <section class="view" id="view-sort" aria-label="一键整理" hidden></section>
+    <section class="view" id="view-providers" aria-label="AI 服务商" hidden></section>
+  </main>
+</div>
+
+<dialog class="wish" id="wish" aria-labelledby="wish-title">
+  <form class="wish-grid" id="wish-form" novalidate>
+    <div class="wish-prev">
+      <div id="wish-stamp"></div>
+      <p>填的时候，邮票跟着变。<br>面值就是想去程度。</p>
+    </div>
+    <div class="wish-form">
+      <h2 id="wish-title">记下一个想去</h2>
+      <div class="two">
+        <div class="sel-field"><label for="w-name">地点</label><input id="w-name" placeholder="比如：南禅寺 · 水路阁" autocomplete="off"></div>
+        <div class="sel-field"><label for="w-city">城市，国家</label><input id="w-city" placeholder="京都，日本" autocomplete="off"></div>
+      </div>
+      <fieldset>
+        <legend>类型</legend>
+        <div class="radio-chips">
+          <label><input type="radio" name="w-type" value="建筑" checked><span>建筑</span></label>
+          <label><input type="radio" name="w-type" value="餐馆"><span>餐馆</span></label>
+          <label><input type="radio" name="w-type" value="城市"><span>城市</span></label>
+          <label><input type="radio" name="w-type" value="自然"><span>自然</span></label>
+          <label><input type="radio" name="w-type" value="咖啡"><span>咖啡</span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>想去程度</legend>
+        <div class="radio-chips denoms">
+          <label><input type="radio" name="w-want" value="1"><span>1<small>分</small></span></label>
+          <label><input type="radio" name="w-want" value="2"><span>2<small>分</small></span></label>
+          <label><input type="radio" name="w-want" value="3"><span>3<small>分</small></span></label>
+          <label><input type="radio" name="w-want" value="4" checked><span>4<small>分</small></span></label>
+          <label><input type="radio" name="w-want" value="5"><span>5<small>分</small></span></label>
+        </div>
+      </fieldset>
+      <div class="two">
+        <div class="sel-field"><label for="w-tags">标签</label><input id="w-tags" placeholder="用空格分开：夜景 早起" autocomplete="off"></div>
+        <label class="switch" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="w-local"> 本地（上海）</label>
+      </div>
+      <div class="wish-foot">
+        <button type="button" class="btn btn-quiet" id="wish-cancel">取消</button>
+        <button type="submit" class="btn btn-seal">收进想去</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!--/APP-->
+<script src="data.js"></script>
+<script src="world.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
