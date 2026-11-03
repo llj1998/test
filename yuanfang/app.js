@@ -839,7 +839,7 @@
       <summary><span class="day-n">Day ${d.n}</span><span class="day-t"><h3 class="${d.title ? '' : 'untitled'}">${esc(d.title || '还没写这天去哪')}</h3><span class="d">${esc(d.date || '')} ${esc(d.wd || '')}</span></span><span class="day-c">${d.items.length} 项</span></summary>
       ${editable && (!d.title || editDay === di) ? `<div class="day-title"><label class="sr-only" for="dt-${t.id}-${di}">Day ${d.n} 的主题</label><input id="dt-${t.id}-${di}" class="dt-in" data-dt="${di}" value="${esc(d.title || '')}" placeholder="这天主要去哪，比如：岚山" autocomplete="off"></div>` : ''}
       <ol class="items" data-di="${di}">${d.items.map((it, ii) => itemRow(it, di, ii, editable)).join('')}</ol>
-      ${editable ? `<div class="day-foot"><form class="quick-add" data-di="${di}"><label class="sr-only" for="qa-${t.id}-${di}">给 Day ${d.n} 加一项</label><span aria-hidden="true">＋</span><input id="qa-${t.id}-${di}" placeholder="加一项，比如：15:30 哲学之道" autocomplete="off" enterkeyhint="done"></form>${d.title && editDay !== di ? `<button class="linklike sm" data-editday="${di}">改这天的主题</button>` : ''}</div>` : ''}
+      ${editable ? `<div class="day-foot"><form class="quick-add" data-di="${di}"><label class="sr-only" for="qa-${t.id}-${di}">给 Day ${d.n} 加一项</label><span aria-hidden="true">＋</span><input id="qa-${t.id}-${di}" placeholder="加一项，比如：15:30 哲学之道" autocomplete="off" enterkeyhint="done"></form>${d.title && editDay !== di ? `<button class="linklike sm" data-editday="${di}">改这天的主题</button>` : ''}${d.items.filter(it => it.place && P[it.place] && (P[it.place].lat || P[it.place].lng)).length >= 2 ? `<button class="linklike sm" data-dayroute="${t.id}:${di}">在地图上看这天</button>` : ''}</div>` : ''}
     </details>`;
   }
 
@@ -1021,7 +1021,7 @@
     $('#view-today').innerHTML = `
       ${c.sim ? `<div class="sim-bar"><span>预览：假设今天是 ${sd.getMonth() + 1} 月 ${sd.getDate()} 日（${WD[sd.getDay()]}）${c.now}，「${esc(tripName(t))}」的第 ${di + 1} 天。真正出发那天，这一页会自动换成当天的安排。</span><a href="#trip" data-trip="${t.id}">回到行程</a></div>` : ''}
       <header class="today-h">
-        <p class="kicker">${esc(tripName(t))} · Day ${di + 1} / ${t.days.length}${c.weather ? ' · ' + esc(c.weather) : ''}</p>
+        <p class="kicker">${esc(tripName(t))} · Day ${di + 1} / ${t.days.length}${c.weather ? ' · ' + esc(c.weather) : ''}${items.filter(it => hasCoord(P[it.place])).length >= 2 ? `　<button class="linklike sm" data-dayroute="${t.id}:${di}">看今天的路线</button>` : ''}</p>
         <h1>${esc(d.title || `Day ${di + 1}`)}</h1>
         <p class="today-dots" role="img" aria-label="今天 ${items.length} 项，完成 ${items.filter(doneAt).length} 项">${items.map(it => `<i class="${doneAt(it) ? 'on' : ''}"></i>`).join('')}<span>${items.filter(doneAt).length}/${items.length}</span></p>
       </header>
@@ -1156,48 +1156,221 @@
       <g><rect class="home" x="${home[0] - 6}" y="${home[1] - 6}" width="12" height="12" rx="1.5" style="fill:var(--seal)"/><text x="${home[0]}" y="${home[1] + 3.6}" text-anchor="middle" style="font:400 9px var(--f-display);fill:var(--on-seal)">家</text></g>
       ${pins}</svg>`;
   }
+  /* ============================== 细看：Leaflet 瓦片地图 ============================== */
+  /* 能缩放到街道。
+     国内用高德底图（中文、路网清楚），国外用 CARTO（OpenStreetMap 数据）。
+     高德用的是 GCJ-02 坐标，数据里存的是 WGS-84，所以在高德底图上画点时要先换算，
+     在地图上点选位置时再换回去。 */
+  const TILES = {
+    amap: { name: '高德', url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', sub: '1234', max: 18, attr: '© 高德地图', gcj: true },
+    carto: { name: 'CARTO', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', sub: 'abcd', max: 19, attr: '© OpenStreetMap 贡献者 © CARTO', gcj: false }
+  };
+  const LM = { map: null, el: null, base: null, baseKey: '', markers: null, route: null, tileOk: 0, tileErr: 0, focus: null, routeKey: '', pickFor: null };
+  const hasCoord = p => !!(p && (p.lat || p.lng));
+  // 中国大陆的大致范围：几个矩形拼起来，再挖掉台湾、越北、俄远东这些角落。
+  // 常见的单个外接框会把日本、韩国也算进去，京都就会错用高德底图。格式 [北, 西, 南, 东]
+  const CN_IN = [[49.2204, 79.4462, 42.889, 96.3304], [54.1415, 109.6872, 39.3747, 135.0002], [42.889, 73.1246, 29.5297, 124.1435], [29.5297, 82.9684, 26.7186, 97.0352], [29.5297, 97.0253, 20.4253, 124.3672], [20.4253, 107.9713, 17.871, 111.6807]];
+  const CN_OUT = [[25.3988, 119.9216, 21.7856, 122.4973], [22.2843, 101.8656, 20.4253, 106.6657], [21.5422, 106.4525, 20.4876, 108.057], [55.8175, 109.0323, 50.3257, 119.1278], [55.8175, 127.4568, 49.5574, 137.0227], [44.8922, 131.2662, 42.5692, 137.0227]];
+  const inBox = (lat, lng) => ([n, w, s, e]) => lat <= n && lat >= s && lng >= w && lng <= e;
+  const outOfChina = (lat, lng) => !CN_IN.some(inBox(lat, lng)) || CN_OUT.some(inBox(lat, lng));
+  function wgs2gcj(lat, lng) {
+    if (outOfChina(lat, lng)) return [lat, lng];
+    const a = 6378245, ee = 0.00669342162296594323, PI = Math.PI, x = lng - 105, y = lat - 35;
+    let dLat = -100 + 2 * x + 3 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x)) + (20 * Math.sin(6 * x * PI) + 20 * Math.sin(2 * x * PI)) * 2 / 3 + (20 * Math.sin(y * PI) + 40 * Math.sin(y / 3 * PI)) * 2 / 3 + (160 * Math.sin(y / 12 * PI) + 320 * Math.sin(y * PI / 30)) * 2 / 3;
+    let dLng = 300 + x + 2 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x)) + (20 * Math.sin(6 * x * PI) + 20 * Math.sin(2 * x * PI)) * 2 / 3 + (20 * Math.sin(x * PI) + 40 * Math.sin(x / 3 * PI)) * 2 / 3 + (150 * Math.sin(x / 12 * PI) + 300 * Math.sin(x / 30 * PI)) * 2 / 3;
+    const rad = lat / 180 * PI;
+    let magic = Math.sin(rad); magic = 1 - ee * magic * magic;
+    const sq = Math.sqrt(magic);
+    dLat = (dLat * 180) / ((a * (1 - ee)) / (magic * sq) * PI);
+    dLng = (dLng * 180) / (a / sq * Math.cos(rad) * PI);
+    return [lat + dLat, lng + dLng];
+  }
+  const gcj2wgs = (lat, lng) => { const [a, b] = wgs2gcj(lat, lng); return [lat * 2 - a, lng * 2 - b]; };
+  const ll = p => (LM.baseKey === 'amap' ? wgs2gcj(p.lat, p.lng) : [p.lat, p.lng]);
+  const km = (a, b) => { const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r; const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+  const fmtKm = k => (k < 1 ? `${Math.round(k * 1000 / 10) * 10} 米` : `${k.toFixed(1)} 公里`);
+  function routeOptions() {
+    const out = [];
+    D.trips.forEach(t => t.days.forEach((d, di) => {
+      const n = d.items.filter(it => hasCoord(P[it.place])).length;
+      if (n >= 2) out.push({ key: `${t.id}:${di}`, label: `${tripName(t)} · Day ${d.n}${d.title ? ' ' + d.title : ''}`, n });
+    }));
+    return out;
+  }
+  function routeData() {
+    if (!LM.routeKey) return null;
+    const [tid, di] = LM.routeKey.split(':'), t = T[tid], d = t && t.days[+di];
+    if (!d) return null;
+    const stops = [], skipped = [];
+    d.items.forEach(it => { const p = it.place && P[it.place]; if (hasCoord(p)) stops.push({ p, it }); else skipped.push(it.title); });
+    const legs = stops.slice(1).map((s, i) => km(stops[i].p, s.p));
+    return { t, d, stops, skipped, legs, total: legs.reduce((a, b) => a + b, 0) };
+  }
+  function pickBase() {
+    const want = D.prefs.mapBase || 'auto';
+    if (want !== 'auto') return want;
+    const c = LM.map ? LM.map.getCenter() : { lat: D.home.lat, lng: D.home.lng };
+    return outOfChina(c.lat, c.lng) ? 'carto' : 'amap';
+  }
+  function setBase() {
+    const key = pickBase();
+    if (key === LM.baseKey && LM.base) return false;
+    if (LM.base) LM.map.removeLayer(LM.base);
+    const t = TILES[key];
+    LM.base = L.tileLayer(t.url, { subdomains: t.sub, maxZoom: t.max, attribution: t.attr });
+    LM.base.on('tileload', () => { LM.tileOk++; checkTiles(); });
+    LM.base.on('tileerror', () => { LM.tileErr++; checkTiles(); });
+    LM.base.addTo(LM.map);
+    LM.baseKey = key;
+    return true;
+  }
+  function checkTiles() {
+    const note = $('#lmap-note');
+    if (note) note.hidden = !(LM.tileErr >= 4 && LM.tileOk === 0);
+  }
+  function drawMarkers() {
+    if (LM.markers) LM.markers.remove();
+    LM.markers = L.layerGroup().addTo(LM.map);
+    const inRoute = new Set((routeData()?.stops || []).map(s => s.p.id));
+    alive().filter(hasCoord).forEach(p => {
+      if (inRoute.has(p.id)) return;
+      const icon = L.divIcon({ className: 'lm-pin', html: `<i class="lm ${p.state}${p.approx ? ' approx' : ''}"></i><span class="lm-l">${esc(p.name)}</span>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+      L.marker(ll(p), { icon, title: `${p.name}${p.approx ? '（大致位置）' : ''}`, riseOnHover: true }).on('click', () => { if (!LM.pickFor) openDrawer(p.id); }).addTo(LM.markers);
+    });
+    const home = { lat: D.home.lat, lng: D.home.lng };
+    L.marker(ll(home), { icon: L.divIcon({ className: 'lm-pin', html: `<i class="lm home">家</i><span class="lm-l">${esc(D.home.city)}</span>`, iconSize: [16, 16], iconAnchor: [8, 8] }), title: `${D.home.city} · 家`, interactive: false }).addTo(LM.markers);
+  }
+  function drawRoute() {
+    if (LM.route) { LM.route.remove(); LM.route = null; }
+    const r = routeData();
+    if (!r || r.stops.length < 2) return;
+    LM.route = L.layerGroup().addTo(LM.map);
+    const seal = getComputedStyle(document.documentElement).getPropertyValue('--seal').trim() || '#C23E2C';
+    L.polyline(r.stops.map(s => ll(s.p)), { color: seal, weight: 3, opacity: .85, dashArray: '7 7', interactive: false }).addTo(LM.route);
+    r.stops.forEach((s, i) => L.marker(ll(s.p), { icon: L.divIcon({ className: 'lm-stop', html: `<b>${i + 1}</b><span class="lm-l">${esc(s.it.t !== '待定' ? s.it.t + ' ' : '')}${esc(s.p.name)}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), title: s.p.name, zIndexOffset: 500 }).on('click', () => { if (!LM.pickFor) openDrawer(s.p.id); }).addTo(LM.route));
+  }
+  function applyFocus() {
+    const f = LM.focus;
+    LM.focus = null;
+    if (!f || !LM.map) return;
+    let pts = [];
+    if (f.type === 'all') pts = alive().filter(hasCoord);
+    if (f.type === 'home') pts = [...alive().filter(p => p.local && hasCoord(p)), { lat: D.home.lat, lng: D.home.lng }];
+    if (f.type === 'area') pts = alive().filter(p => areaOf(p) === f.key && hasCoord(p));
+    if (f.type === 'place') pts = [P[f.key]].filter(hasCoord);
+    if (f.type === 'route') pts = (routeData()?.stops || []).map(s => s.p);
+    if (f.type === 'pick') { const p = P[f.key]; pts = hasCoord(p) ? [p] : [{ lat: D.home.lat, lng: D.home.lng }]; }
+    if (!pts.length) return;
+    if (pts.length === 1) LM.map.setView(ll(pts[0]), f.type === 'place' || f.type === 'pick' ? 15 : 12);
+    else LM.map.fitBounds(L.latLngBounds(pts.map(ll)), { padding: [36, 36], maxZoom: 15 });
+    if (setBase()) { drawMarkers(); drawRoute(); }
+  }
+  function mountLmap() {
+    const slot = $('#lmap-slot');
+    if (!slot) return;
+    if (!window.L) { slot.outerHTML = '<div class="lmap-missing">地图组件没有加载出来（vendor/leaflet.js）。</div>'; return; }
+    if (!LM.el) { LM.el = document.createElement('div'); LM.el.className = 'lmap'; LM.el.setAttribute('aria-label', '可以缩放的地图'); }
+    slot.replaceWith(LM.el);
+    if (!LM.map) {
+      LM.map = L.map(LM.el, { worldCopyJump: true, minZoom: 2, zoomSnap: .5 }).setView([D.home.lat, D.home.lng], 5);
+      LM.map.attributionControl.setPrefix('');
+      LM.map.on('moveend', () => { if ((D.prefs.mapBase || 'auto') === 'auto' && setBase()) { drawMarkers(); drawRoute(); } });
+      LM.map.on('zoomend', () => LM.el.classList.toggle('show-labels', LM.map.getZoom() >= 10));
+      LM.map.on('click', e => {
+        if (!LM.pickFor) return;
+        const id = LM.pickFor, p = P[id], w = e.latlng.wrap();
+        let [lat, lng] = [w.lat, w.lng];
+        if (LM.baseKey === 'amap') [lat, lng] = gcj2wgs(lat, lng);
+        LM.pickFor = null;
+        act(`已把「${p.name}」放到点的位置`, () => { const q = P[id]; q.lat = +lat.toFixed(5); q.lng = +lng.toFixed(5); q.approx = false; }, { action: { label: '看看它', fn: () => openDrawer(id) } });
+      });
+      LM.focus ||= { type: 'all' };
+    }
+    LM.el.classList.toggle('picking', !!LM.pickFor);
+    requestAnimationFrame(() => {
+      LM.map.invalidateSize();
+      setBase();
+      drawMarkers();
+      drawRoute();
+      applyFocus();
+      LM.el.classList.toggle('show-labels', LM.map.getZoom() >= 10);
+      checkTiles();
+    });
+  }
+  function detailSide() {
+    const areas = {};
+    alive().filter(hasCoord).forEach(p => { const a = p.local ? D.home.city : areaOf(p); areas[a] = (areas[a] || 0) + 1; });
+    const opts = routeOptions(), r = routeData();
+    const base = D.prefs.mapBase || 'auto';
+    return `<section class="sheet sel-card"><h2>去哪一片</h2>
+        <div class="area-chips"><button class="chip" data-lfocus="all">全部</button>${Object.entries(areas).sort((a, b) => b[1] - a[1]).map(([a, n]) => `<button class="chip" data-lfocus="${a === D.home.city ? 'home' : 'area'}" data-key="${esc(a)}">${esc(a)}<span class="num">${n}</span></button>`).join('')}</div></section>
+      <section class="sheet sel-card"><h2>看一天的路线</h2>
+        ${opts.length ? `<label class="sr-only" for="route-sel">选一天</label><select id="route-sel" class="sort-sel route-sel"><option value="">不看路线</option>${opts.map(o => `<option value="${o.key}" ${o.key === LM.routeKey ? 'selected' : ''}>${esc(o.label)}（${o.n} 处）</option>`).join('')}</select>` : '<p class="hint">某一天里有两处以上带坐标的地点，就能在这里看路线。</p>'}
+        ${r ? `<ol class="route-list">${r.stops.map((s, i) => `<li><span class="n">${i + 1}</span><span><button class="linklike" data-place="${s.p.id}">${esc(s.p.name)}</button><small>${esc(s.it.t)}</small></span><span class="leg">${i ? '↑ ' + fmtKm(r.legs[i - 1]) : ''}</span></li>`).join('')}</ol>
+          <p class="route-sum">直线距离一共约 <b>${fmtKm(r.total)}</b>${r.legs.some(k => k > 8) ? '，有一段超过 8 公里，看看能不能调一下顺序' : ''}。${r.skipped.length ? `「${esc(r.skipped.slice(0, 3).join('、'))}」${r.skipped.length > 3 ? '等' : ''}没有关联地点，没画进去。` : ''}</p>` : ''}</section>
+      <section class="sheet sel-card"><h2>底图</h2>
+        <div class="seg sm" role="group" aria-label="底图">${[['auto', '自动'], ['amap', '高德'], ['carto', 'CARTO']].map(([v, l]) => `<button data-mapbase="${v}" aria-pressed="${base === v}">${l}</button>`).join('')}</div>
+        <p class="hint">自动：在国内用高德（中文地名、路网清楚），在国外用 CARTO。底图要联网才能加载。</p></section>`;
+  }
+
   function renderMap() {
     const far = alive().filter(p => !p.local), local = alive().filter(p => p.local);
-    if (!mapSel) mapSel = mapMode === 'world' ? ((clusters().find(c => c.state === 'plan') || clusters()[0])?.key || D.home.city) : (local[0]?.id || null);
-    const scope = mapMode === 'world' ? far : local;
+    if (!mapSel && mapMode !== 'detail') mapSel = mapMode === 'world' ? ((clusters().find(c => c.state === 'plan') || clusters()[0])?.key || D.home.city) : (local[0]?.id || null);
+    const scope = mapMode === 'world' ? far : mapMode === 'city' ? local : alive();
     const n = s => scope.filter(p => p.state === s).length;
-    const noCoord = scope.filter(p => !(p.lat || p.lng)).length;
+    const noCoord = scope.filter(p => !hasCoord(p)).length;
     const groups = [['want', '想去'], ['plan', '计划中'], ['been', '已去过']];
+    const picking = mapMode === 'detail' && LM.pickFor && P[LM.pickFor];
+    const note = mapMode === 'world' ? '虚线：计划中的航线　实线：去过的' : mapMode === 'detail' ? '滚轮或双指缩放 · 点一个点看详情 · 虚线圈是大致位置' : D.home.city === '上海' ? '示意图，不按真实比例' : '按坐标摆放的示意图';
     $('#view-map').innerHTML = `
       <header class="vh">
         <div><h1>地图</h1><p class="sub">有坐标的地点都在这里 · 远方 <b>${far.length}</b> · 本地 <b>${local.length}</b></p></div>
-        <div class="vh-actions"><div class="seg" role="group" aria-label="地图范围">${[['world', '远方'], ['city', `本地 · ${D.home.city}`]].map(([v, l]) => `<button data-map="${v}" aria-pressed="${mapMode === v}">${esc(l)}</button>`).join('')}</div></div>
+        <div class="vh-actions"><div class="seg" role="group" aria-label="地图">${[['world', '总览'], ['detail', '细看'], ['city', `本地 · ${D.home.city}`]].map(([v, l]) => `<button data-map="${v}" aria-pressed="${mapMode === v}">${esc(l)}</button>`).join('')}</div></div>
       </header>
       <div class="map-wrap">
         <section class="sheet map-card">
           <div class="map-bar">
-            <div class="legend"><span><i class="swatch want"></i>想去 <span class="num">${n('want')}</span></span><span><i class="swatch plan"></i>计划中 <span class="num">${n('plan')}</span></span><span><i class="swatch been"></i>已去过 <span class="num">${n('been')}</span></span><span><i class="swatch home"></i>家</span></div>
-            <span class="map-note">${mapMode === 'world' ? '虚线：计划中的航线　实线：去过的' : D.home.city === '上海' ? '示意图，不按真实比例' : '按坐标摆放的示意图'}${noCoord ? `　${noCoord} 处还没有坐标` : ''}</span>
+            <div class="legend"><span><i class="swatch want"></i>想去 <span class="num">${n('want')}</span></span><span><i class="swatch plan"></i>计划中 <span class="num">${n('plan')}</span></span><span><i class="swatch been"></i>已去过 <span class="num">${n('been')}</span></span><span><i class="swatch home"></i>家</span>${mapMode === 'detail' && LM.routeKey ? '<span><i class="swatch path"></i>路线</span>' : ''}</div>
+            <span class="map-note">${note}${noCoord ? `　${noCoord} 处还没有坐标` : ''}</span>
           </div>
-          <div class="map-scroll">${mapMode === 'world' ? worldSvg() : citySvg()}</div>
+          ${picking ? `<div class="pick-bar" role="status"><span>在地图上点一下，把「${esc(picking.name)}」放到那里。</span><button class="btn btn-sm btn-quiet" data-pickcancel>取消</button></div>` : ''}
+          ${mapMode === 'detail' ? `<div class="lmap-note" id="lmap-note" hidden>底图没有加载出来。可能是没联网，或者在线预览页不允许访问地图服务；下载到本地、联网打开就能看到街道。地点和路线照样能看。</div><div id="lmap-slot"></div>` : `<div class="map-scroll">${mapMode === 'world' ? worldSvg() : citySvg()}</div>`}
         </section>
         <div class="map-side">
-          <div id="sel-card">${selCard()}</div>
-          <div class="state-groups">${groups.map(([s, l]) => `<div><h3>${l}</h3><ul>${scope.filter(p => p.state === s).map(p => `<li><button data-pick="${p.id}">${esc(p.name)}</button></li>`).join('') || '<li class="hint">暂无</li>'}</ul></div>`).join('')}</div>
+          ${mapMode === 'detail' ? detailSide() : `<div id="sel-card">${selCard()}</div>
+          <div class="state-groups">${groups.map(([s, l]) => `<div><h3>${l}</h3><ul>${scope.filter(p => p.state === s).map(p => `<li><button data-pick="${p.id}">${esc(p.name)}</button></li>`).join('') || '<li class="hint">暂无</li>'}</ul></div>`).join('')}</div>`}
         </div>
       </div>`;
+    if (mapMode === 'detail') mountLmap();
   }
   function selCard() {
-    let title, where, list;
+    let title, where, list, zoom = '';
     if (mapMode === 'city') {
       const p = P[mapSel] && P[mapSel].local ? P[mapSel] : alive().find(x => x.local);
       if (!p) return `<section class="sheet sel-card"><h2>${esc(D.home.city)}</h2><p class="hint">还没有本地的地点。记一家想去的店试试。</p></section>`;
       title = p.name; where = `${D.home.city} · ${p.country} · ${p.city}`; list = [p];
+      zoom = hasCoord(p) ? `<button class="btn btn-sm" data-mapfocus="${p.id}">在细看里放大</button>` : '';
     } else if (mapSel === D.home.city) {
-      list = alive().filter(p => p.local); title = D.home.city; where = `家 · 本地 ${list.length} 处，切到「本地」看细节`;
+      list = alive().filter(p => p.local); title = D.home.city; where = `家 · 本地 ${list.length} 处`;
+      zoom = '<button class="btn btn-sm" data-mapzoom="home">放大看城里</button>';
     } else {
       const cs = clusters();
       const c = cs.find(x => x.key === mapSel) || cs[0];
       if (!c) return '<section class="sheet sel-card"><h2>还没有远方的地点</h2><p class="hint">记下的地点有了坐标，就会出现在地图上。</p></section>';
       list = c.places; title = (LBL[c.key] || [c.key])[0]; where = `${[...new Set(list.map(p => p.country).filter(Boolean))].join(' · ')} · ${list.length} 处`;
+      zoom = `<button class="btn btn-sm" data-mapzoom="${esc(c.key)}">放大看这一片</button>`;
     }
     return `<section class="sheet sel-card" aria-live="polite"><div><h2>${esc(title)}</h2><div class="where">${esc(where)}</div></div>
-      <ul class="sel-list">${list.map(p => `<li>${stamp(p, { size: 'xs', open: true })}<div><button class="linklike" data-place="${p.id}">${esc(p.name)}</button>${stateLine(p)}</div></li>`).join('')}</ul></section>`;
+      <ul class="sel-list">${list.map(p => `<li>${stamp(p, { size: 'xs', open: true })}<div><button class="linklike" data-place="${p.id}">${esc(p.name)}</button>${stateLine(p)}</div></li>`).join('')}</ul>${zoom ? `<div>${zoom}</div>` : ''}</section>`;
+  }
+  /* 从别处跳到「细看」：先设好要看什么，再切页面 */
+  function openDetail(focus, extra = {}) {
+    mapMode = 'detail';
+    Object.assign(LM, extra);
+    LM.focus = focus;
+    if ($('#drawer').open) $('#drawer').close();
+    if (location.hash !== '#map') location.hash = 'map';
+    renderMap();
   }
 
   /* ============================== 回忆 ============================== */
@@ -1770,7 +1943,7 @@
           <p class="dr-where">${p.local ? '<span class="local">本地</span>' : ''}${esc(whereOf(p))} · ${esc(p.type)}</p>
           <h2 id="dr-title">${esc(p.name)}</h2>
           <div class="dr-want" role="radiogroup" aria-label="想去程度">${[1, 2, 3, 4, 5].map(n => `<button role="radio" aria-checked="${n === p.want}" data-want="${n}">${n}<small>分</small></button>`).join('')}</div>
-          <div class="dr-links"><button class="linklike sm" data-pedit="${p.id}">改信息</button><a class="linklike sm" href="${mapLink(p)}" target="_blank" rel="noopener">在地图 App 里看</a></div>
+          <div class="dr-links"><button class="linklike sm" data-pedit="${p.id}">改信息</button>${hasCoord(p) ? `<button class="linklike sm" data-mapfocus="${p.id}">在地图上看</button>` : `<button class="linklike sm" data-pickpos="${p.id}">在地图上定位</button>`}<a class="linklike sm" href="${mapLink(p)}" target="_blank" rel="noopener">在地图 App 里看</a></div>
         </div>
       </header>
       <ol class="chain" aria-label="这个地方走到了哪一步">${steps.map(([k, l, s, on], i) => `<li class="${on ? 'on' : ''} ${i === curIdx ? 'cur' : ''}"><i class="mk ${k}"></i><b>${l}</b><small>${esc(s)}</small></li>`).join('')}</ol>
@@ -1786,7 +1959,7 @@
   function placeEditForm(p) {
     const areas = [...new Set(alive().map(areaOf))];
     return `<form class="drawer-in dr-edit" id="pe-form">
-      <header class="ck-h"><div><h2 id="dr-title">改地点信息</h2><p>坐标可以从地图 App 里长按复制，粘贴到这里。</p></div><button type="button" class="dr-x" data-close aria-label="关闭">×</button></header>
+      <header class="ck-h"><div><h2 id="dr-title">改地点信息</h2><p>位置可以到地图上点一下，也可以从地图 App 里长按复制坐标粘贴进来。</p></div><button type="button" class="dr-x" data-close aria-label="关闭">×</button></header>
       <div class="pe-grid">
         <div class="pe-prev">${stamp(p)}</div>
         <div class="pd-fields">
@@ -1795,7 +1968,7 @@
             <div class="sel-field"><label for="pe-country">${p.local ? '区' : '国家'}</label><input id="pe-country" value="${esc(p.country)}" autocomplete="off"></div></div>
           <div class="sel-field"><label for="pe-area">归到哪一片（同一趟能顺路去的放一起）</label><input id="pe-area" list="pe-areas" value="${esc(areaOf(p))}" autocomplete="off"><datalist id="pe-areas">${areas.map(a => `<option value="${esc(a)}">`).join('')}</datalist></div>
           <fieldset><legend>类型</legend><div class="radio-chips">${TYPES.map(t => `<label><input type="radio" name="pe-type" value="${t}" ${t === p.type ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div></fieldset>
-          <div class="sel-field"><label for="pe-coord">坐标（纬度, 经度）</label><input id="pe-coord" value="${p.lat || p.lng ? `${p.lat}, ${p.lng}` : ''}" placeholder="比如：35.0113, 135.7934" autocomplete="off"></div>
+          <div class="coord-row"><div class="sel-field"><label for="pe-coord">坐标（纬度, 经度）</label><input id="pe-coord" value="${p.lat || p.lng ? `${p.lat}, ${p.lng}` : ''}" placeholder="比如：35.0113, 135.7934" autocomplete="off"></div><button type="button" class="btn btn-sm" data-pickpos="${p.id}">到地图上点一下</button></div>
           <label class="switch"><input type="checkbox" id="pe-local" ${p.local ? 'checked' : ''}> 本地（${esc(D.home.city)}）</label>
         </div>
       </div>
@@ -1967,6 +2140,7 @@
     const navV = v === 'today' && !going ? 'trip' : v;
     $$('[data-nav]').forEach(a => (a.dataset.nav === navV ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
     $('#mtitle').textContent = VIEW_NAME[v];
+    if (v === 'map' && LM.map) setTimeout(() => LM.map.invalidateSize(), 0);
     document.title = v === 'home' ? '远方清单' : `${VIEW_NAME[v]} · 远方清单`;
   }
 
@@ -2141,7 +2315,14 @@
     }
 
     // 地图
-    if (ds.map) { mapMode = ds.map; mapSel = null; renderMap(); return; }
+    if (ds.map) { mapMode = ds.map; mapSel = null; if (mapMode !== 'detail') LM.pickFor = null; renderMap(); return; }
+    if (ds.mapzoom) { openDetail(ds.mapzoom === 'home' ? { type: 'home' } : { type: 'area', key: ds.mapzoom }); return; }
+    if (ds.mapfocus) { openDetail({ type: 'place', key: ds.mapfocus }); return; }
+    if (ds.pickpos) { const p = P[ds.pickpos]; openDetail({ type: 'pick', key: p.id }, { pickFor: p.id }); toast(`在地图上点一下，把「${p.name}」放到那里`); return; }
+    if (ds.pickcancel !== undefined) { LM.pickFor = null; renderMap(); return; }
+    if (ds.dayroute) { openDetail({ type: 'route' }, { routeKey: ds.dayroute }); return; }
+    if (ds.lfocus) { LM.focus = ds.lfocus === 'area' ? { type: 'area', key: ds.key } : { type: ds.lfocus }; applyFocus(); return; }
+    if (ds.mapbase) { D.prefs.mapBase = ds.mapbase; save(); LM.baseKey = ''; LM.tileOk = 0; LM.tileErr = 0; renderMap(); return; }
     if (el.classList.contains('pin')) { mapSel = ds.c; renderMap(); return; }
     if (ds.pick) {
       const p = P[ds.pick];
@@ -2229,6 +2410,7 @@
   document.addEventListener('change', async e => {
     const t = e.target;
     if (t.id === 'sort-places') { pf.sort = t.value; renderAlbum(); return; }
+    if (t.id === 'route-sel') { LM.routeKey = t.value; LM.focus = t.value ? { type: 'route' } : null; renderMap(); return; }
     if (t.dataset.prep) {
       const tr = T[t.dataset.prep], x = tr.materials.prep[+t.dataset.i];
       x.done = t.checked; save();

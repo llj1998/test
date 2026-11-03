@@ -45,6 +45,7 @@
 
   --shadow-c: 23 33 58;
   --ink-blend: multiply;
+  --tile-filter: grayscale(.35) sepia(.1) contrast(.95) brightness(1.02);  /* 细看地图的瓦片 */
 
   /* 字 */
   --f-display: "Noto Serif SC", "ZCOOL XiaoWei", "Songti SC", "STSong", "Noto Serif SC", serif;
@@ -72,6 +73,7 @@
     --seal: #D9533E; --seal-wash: #3C1F1B; --on-seal: #FFF7F3;
     --obj-paper: #E9EBE6; --obj-ink: #1C2540; --obj-ink-2: #545D71; --obj-rule: #C6CBCB; --art-paper: #F1F2EC;
     --shadow-c: 0 0 0; --ink-blend: normal;
+    --tile-filter: invert(1) hue-rotate(180deg) grayscale(.4) brightness(.82) contrast(.9);
     color-scheme: dark;
   }
 }
@@ -84,6 +86,7 @@
   --seal: #D9533E; --seal-wash: #3C1F1B; --on-seal: #FFF7F3;
   --obj-paper: #E9EBE6; --obj-ink: #1C2540; --obj-ink-2: #545D71; --obj-rule: #C6CBCB; --art-paper: #F1F2EC;
   --shadow-c: 0 0 0; --ink-blend: normal;
+  --tile-filter: invert(1) hue-rotate(180deg) grayscale(.4) brightness(.82) contrast(.9);
   color-scheme: dark;
 }
 
@@ -1414,6 +1417,48 @@ button.rung:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .postcard:hover .pc-edit, .postcard:focus-within .pc-edit { opacity: 1; }
 @media (hover: none) { .pc-edit { opacity: .8; } }
 
+/* ==========================================================================
+   细看：Leaflet 瓦片地图
+   ========================================================================== */
+.lmap { position: relative; isolation: isolate; z-index: 0; height: min(66vh, 600px); min-height: 360px; border-radius: 4px; background: var(--sheet-2); }  /* isolation：Leaflet 的控件 z-index 很高，关在这里面，免得盖住手机底栏 */
+.lmap.leaflet-container { font-family: var(--f-body); background: var(--sheet-2); }
+.lmap .leaflet-tile-pane { filter: var(--tile-filter); }
+.lmap.picking.leaflet-container, .lmap.picking .leaflet-interactive { cursor: crosshair; }
+.lmap .leaflet-bar { border: 1px solid var(--rule); border-radius: 4px; box-shadow: none; }
+.lmap .leaflet-bar a { background: var(--sheet); color: var(--ink); border-bottom-color: var(--rule); }
+.lmap .leaflet-bar a:hover { background: var(--sheet-2); }
+.lmap .leaflet-control-attribution { background: color-mix(in srgb, var(--sheet) 82%, transparent); color: var(--ink-3); font-size: 10px; }
+.lmap .leaflet-control-attribution a { color: var(--ink-2); }
+.lm-pin, .lm-stop { background: none; border: 0; }
+.lm { position: relative; display: block; box-sizing: border-box; width: 14px; height: 14px; }
+.lm.want { border: 2.5px solid var(--want); border-radius: 50%; background: var(--sheet); }
+.lm.plan { border: 1.5px solid var(--sheet); background: var(--plan); transform: rotate(45deg) scale(.9); }
+.lm.been { border-radius: 50%; background: var(--been); transform: scale(.75); box-shadow: 0 0 0 2.5px var(--sheet), 0 0 0 4px var(--been); }
+.lm.approx { opacity: .7; outline: 1.5px dashed var(--ink-3); outline-offset: 3px; }
+.lm.home { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 2px; background: var(--seal); color: var(--on-seal); font: 400 10px/1 var(--f-display); font-style: normal; }
+.lm-l { position: absolute; left: 19px; top: -2px; display: none; white-space: nowrap; color: var(--ink); font: 500 12px var(--f-body); text-shadow: 0 0 3px var(--sheet), 0 0 3px var(--sheet), 0 0 4px var(--sheet); pointer-events: none; }
+.lmap.show-labels .lm-l, .lm-stop .lm-l { display: block; }
+.lm-stop b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--seal); color: var(--on-seal); font: 700 12px/1 var(--f-type); box-shadow: 0 0 0 2px var(--sheet), 0 4px 8px -2px rgb(0 0 0 / .3); }
+.lm-stop .lm-l { left: 28px; top: 3px; font-weight: 700; }
+.swatch.path { width: 18px; height: 0; border-top: 2.5px dashed var(--seal); }
+.lmap-note { margin-bottom: 8px; padding: 10px 12px; border: 1px dashed var(--rule); border-radius: 4px; font-size: 13px; color: var(--ink-2); }
+.lmap-missing { padding: 40px 20px; text-align: center; color: var(--ink-2); }
+.pick-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; padding: 8px 12px; border-radius: 4px; background: var(--seal-wash); font-size: 13px; color: var(--ink); }
+.area-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.area-chips .num { margin-left: 4px; font-size: 11px; color: var(--ink-3); }
+.route-sel { width: 100%; }
+.route-list { list-style: none; padding: 0; display: grid; gap: 8px; }
+.route-list li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+.route-list .n { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--seal); color: var(--on-seal); font: 700 11px/1 var(--f-type); }
+.route-list .linklike { font-weight: 500; }
+.route-list small { display: block; font: 400 11px var(--f-type); color: var(--ink-3); }
+.route-list .leg { font: 400 12px var(--f-type); color: var(--ink-3); white-space: nowrap; }
+.route-sum { font-size: 13px; color: var(--ink-2); }
+.route-sum b { color: var(--ink); }
+.map-side .sel-card > .seg { justify-self: start; }
+.coord-row { display: flex; align-items: flex-end; gap: 10px; }
+.coord-row .sel-field { flex: 1; }
+
 /* ---------- 浮层：搜索框、抽屉、底部表单 ---------- */
 dialog { color: var(--ink); }
 dialog::backdrop { background: rgb(12 18 32 / .4); }
@@ -1762,6 +1807,8 @@ dialog.sheet-dlg[open] { animation: rise .3s cubic-bezier(.2, .8, .3, 1); }
   .pe-prev .stamp-wrap { width: 76px; }
   .inbox-f { flex-direction: column; align-items: stretch; }
   .rubber { top: auto; bottom: 16px; right: 14px; font-size: 16px; }
+  .lmap { height: 58vh; min-height: 300px; }
+  .coord-row { flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

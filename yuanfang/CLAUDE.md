@@ -20,6 +20,7 @@
 - 纯前端，没有构建步骤，没有框架。双击 `index.html` 就能用。
 - 数据存在浏览器 localStorage（键名 `yuanfang/v3`），可以导出和导入 JSON 备份。
 - 「一键整理」在浏览器里直接请求用户配置的 OpenAI 兼容接口（`{base}/chat/completions`）。
+- 地图页的「细看」用 Leaflet（放在 `vendor/`，不走 CDN）加在线瓦片：国内高德，国外 CARTO。瓦片要联网，其他功能都不用。
 - 第一次打开载入 `data.js` 里的示例数据（京都红叶七日、上海的店等），日期是 2026 年 11 月的真实日期。
 - 界面文字全部是简体中文。
 
@@ -29,7 +30,7 @@
 python3 -m http.server 8000      # 本地预览，打开 http://localhost:8000
 npm install                      # 第一次：装 playwright
 npx playwright install chromium  # 第一次：装浏览器
-npm test                         # 冒烟测试：tests/smoke.js，33 项
+npm test                         # 冒烟测试：tests/smoke.js，41 项
 npm run build                    # 打包成单文件 dist/远方清单.html
 ```
 
@@ -38,7 +39,7 @@ npm run build                    # 打包成单文件 dist/远方清单.html
 ## 改完以后的检查清单
 
 1. `node -e "new Function(require('fs').readFileSync('app.js','utf8'))"`：先确认语法没坏。
-2. `npm test`：33 项全过，并且没有脚本报错。
+2. `npm test`：41 项全过，并且没有脚本报错。
 3. 改了界面的话，在 1440px 和 400px 宽、浅色和深色下各看一眼。深色可以用 `page.emulateMedia({ colorScheme: 'dark' })` 截图看。
 4. 改了数据结构的话，看下面「改存储结构」那一节。
 5. 行为变了的话，同步改 `docs/使用指南.md` 和 `README.md`。
@@ -54,15 +55,16 @@ yuanfang/
 ├── styles.css        全部样式。开头是设计令牌（含两套深色定义），后面按区块排列，第二版和第三版新增的样式各有一个大标题
 ├── data.js           window.DATA：示例数据，也是数据结构的参考
 ├── world.js          window.WORLD：世界陆地轮廓（已投影的 SVG path），由 tools/build_world.py 生成，不要手改
-├── app.js            全部逻辑，一个 IIFE，约 2400 行
-├── tests/smoke.js    Playwright 冒烟测试
+├── app.js            全部逻辑，一个 IIFE，约 2600 行
+├── vendor/           Leaflet 1.9.4 的 leaflet.js / leaflet.css 和许可证，原样从 npm 拷来，不要改
+├── tests/smoke.js    Playwright 冒烟测试（瓦片请求被拦下来回一张 1×1 的图，不连外网）
 ├── tools/build_single.py   打包单文件
 ├── tools/build_world.py    重新生成 world.js
 ├── docs/使用指南.md  给用户看的功能介绍、场景和示例
 └── README.md         安装、打开、注意事项
 ```
 
-三个脚本按顺序加载：`data.js` → `world.js` → `app.js`。
+四个脚本按顺序加载：`vendor/leaflet.js` → `data.js` → `world.js` → `app.js`。样式是 `vendor/leaflet.css` 在前、`styles.css` 在后，方便覆盖。
 
 ---
 
@@ -82,7 +84,7 @@ yuanfang/
 - `D`：唯一的数据对象。启动时从 localStorage 读；读不到或 `version !== 3` 就用 `clone(window.DATA)`。
 - `P` / `T`：按 id 索引的地点、行程，由 `reindex()` 重建。`refresh()` 和 `restore()` 都会调用它。
 - 渲染：每个视图一个 `renderXxx()`，用模板字符串整块重写 `innerHTML`。没有虚拟 DOM，也不做局部更新，唯一例外是想去页的 `renderAlbum()`（搜索时只重画邮票册）。
-- 视图状态（当前行程 `curTrip`、筛选 `pf`、地图 `mapMode/mapSel`、整理 `sortState`、抽屉 `dr`、盖章 `ck` 等）放在模块变量里，不存进 `D`。
+- 视图状态（当前行程 `curTrip`、筛选 `pf`、地图 `mapMode/mapSel`、细看地图 `LM`、整理 `sortState`、抽屉 `dr`、盖章 `ck` 等）放在模块变量里，不存进 `D`。唯一存进 `D` 的界面偏好是 `D.prefs.mapBase`（底图选择）。
 
 ### 路由
 
@@ -133,7 +135,8 @@ yuanfang/
 | `想去` | `pf`（筛选状态） `renderPlaces` `renderAlbum` `areaCards`（按地方看） |
 | `行程` | `renderTrip` `dayBlock` `itemRow` `folderBody`（资料夹四个标签页及其增删表单） `openTripSheet` `saveTripForm` `doMilestone` `parseDue` |
 | `今天` | `todayCtx`（进行中的行程，否则用 `D.todaySim` 预览） `renderToday` `mapLink`（高德 / Google 地图链接） |
-| `地图` | `proj`（Natural Earth I 投影，和 world.js 一致） `clusters`（按 area 聚合） `worldSvg` `citySvg`（本地地图，上海画江河，其他城市画网格） `renderMap` `selCard` |
+| `地图` | `proj`（Natural Earth I 投影，和 world.js 一致） `clusters`（按 area 聚合） `worldSvg` `citySvg`（本地地图，上海画江河，其他城市画网格） |
+| `细看：Leaflet 瓦片地图` | `TILES`（高德、CARTO 两种底图） `LM`（地图实例和状态） `outOfChina` `wgs2gcj` `gcj2wgs` `ll` `km` `fmtKm` `routeOptions` `routeData` `pickBase` `setBase` `checkTiles` `drawMarkers` `drawRoute` `applyFocus` `mountLmap` `detailSide`；三种看法共用的 `renderMap` `selCard` `openDetail` |
 | `回忆` | `renderMemories` `postcard` |
 | `一键整理` | `AI_PROMPT` `sortState` `activeProvider` `findPlace` `findItem` `normalize` `callAI` `explainErr` `sendToSort` `runSort` `renderSort` `traysHtml` `updateCommit` `commitSort` |
 | `设置` | `renderProviders`（服务商、家、数据三块） `testProvider` `clearAll` |
@@ -317,6 +320,15 @@ yuanfang/
 - **示例数据会过期**：示例日期固定在 2026 年 11 月。过了这个时间，京都那次会显示成已完成，「今天」页也只能看预览。测试不受影响，因为测试固定了时间。以后可以考虑把示例日期改成相对今天计算。
 - **`[hidden]` 必须加 `!important`**，否则 `.nav a { display:flex }` 之类的规则会让隐藏元素露出来。
 - **不要在 `<summary>` 里放输入框**：点击输入框会触发展开或收起。每天的主题输入框因此放在展开后的内容里。
+- **细看地图（Leaflet）**
+  - **地图只建一次**：`LM.el` 是一个常驻的 div，`renderMap()` 每次整块重写 `#view-map` 时，`mountLmap()` 把它塞回 `#lmap-slot`，再重画标记和路线，不会重新建地图，所以缩放和位置不会丢。从别的页切回地图时，`route()` 会调用 `invalidateSize()`。
+  - **视角只在需要时跳**：要让地图飞到某处，设 `LM.focus = { type: 'all' | 'home' | 'area' | 'place' | 'route' | 'pick', key }`，`applyFocus()` 用完就清掉。从别的页过来用 `openDetail(focus, { routeKey, pickFor })`。
+  - **高德是 GCJ-02 坐标**：数据里存的都是 WGS-84（GPS）。用高德底图时，`ll(p)` 把要画的点转成 GCJ-02；在地图上点选位置时，`gcj2wgs()` 再转回来存。国外和台湾不转换。不转换的话，国内的点会偏几百米。
+  - **国内国外怎么判断**：`outOfChina()` 用几个矩形拼出大陆范围，再挖掉台湾、越北、俄远东。常见的单个外接框（经度 72–137.8）会把日本、韩国也包进去，京都就会错用高德。
+  - **瓦片地址**：高德用的是网页版公开的瓦片地址，CARTO 用的是它的免费底图，都适合个人使用；如果要做成给很多人用的网站，需要换成正式申请了密钥的服务。瓦片接连失败（`LM.tileErr >= 4` 且一张都没成功）时显示 `#lmap-note`。
+  - **深色模式**：瓦片本身是浅色的，靠令牌 `--tile-filter`（深色下反相再转色相）压暗。
+  - **z-index**：Leaflet 的控件 z-index 是 800–1000，`.lmap` 加了 `isolation: isolate` 把它们关在地图里面，否则会盖住手机底栏。
+  - **类名**：首页的四个阶段用了 `.route`，图例里的路线样例因此叫 `.swatch.path`。新加类名前先搜一下。
 - **上海本地地图**：黄浦江和苏州河是按固定的经纬度框画的（`SH_BOX`）。家改成别的城市时，本地地图会自动换成按坐标摆放的网格。
 - **竖排和圈点**：`writing-mode: vertical-rl` 加 `text-emphasis`，需要较新的浏览器。数字用 `text-combine-upright` 横排在竖排里。
 
@@ -324,14 +336,14 @@ yuanfang/
 
 ## 在线预览（claude.ai）
 
-之前在 claude.ai 上发布过一个在线预览，那是单独的一份拷贝，不会随仓库自动更新。发布时去掉了 `index.html` 的文档骨架，并去掉了「导出备份」按钮，因为预览页不允许下载。本地开发不用管它。
+之前在 claude.ai 上发布过一个在线预览，那是单独的一份拷贝，不会随仓库自动更新。发布时去掉了 `index.html` 的文档骨架，并去掉了「导出备份」按钮，因为预览页不允许下载。预览页也不允许外部请求，所以细看地图在那里只有地点和路线，没有街道底图。本地开发不用管它。
 
 ---
 
 ## 接下来可以做的
 
 - 加一个很薄的后端（比如 Cloudflare Workers + D1，或一个小 Node 服务）：代理 AI 请求（不在浏览器里放密钥，也不受跨域限制）、存数据库、多设备同步。表结构可以直接照着上面的数据模型。
-- 地图换成 Leaflet，沿用三种颜色、三种形状的标记。
+- 细看地图：瓦片缓存到本地（Service Worker），没网也能看去过的街区；路线按步行或公交的真实距离算（需要地图服务的路径规划接口）。
 - 截图识别文字（OCR）、读取链接正文：都需要后端。
 - 示例数据改成相对今天的日期。
 - 和同行的人共享一次行程（只读链接）。

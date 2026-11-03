@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把 index.html + styles.css + data.js + world.js + app.js 打包成一个可以双击打开的 html。
+"""把 index.html 和它引用的样式、脚本（含 vendor/ 里的 Leaflet）打包成一个可以双击打开的 html。
 
 用法（在 yuanfang/ 目录下）：
     python3 tools/build_single.py            # 输出 dist/远方清单.html
@@ -11,16 +11,18 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCRIPTS = ['data.js', 'world.js', 'app.js']
+SCRIPTS = ['vendor/leaflet.js', 'data.js', 'world.js', 'app.js']
+STYLES = ['vendor/leaflet.css', 'styles.css']
 
 
 def build() -> str:
     html = (ROOT / 'index.html').read_text(encoding='utf-8')
-    css = (ROOT / 'styles.css').read_text(encoding='utf-8')
-    link = '<link rel="stylesheet" href="styles.css">'
-    if link not in html:
-        raise SystemExit('index.html 里找不到 styles.css 的 <link>，没法内联')
-    html = html.replace(link, '<style>\n' + css + '\n</style>')
+    for name in STYLES:
+        css = (ROOT / name).read_text(encoding='utf-8')
+        link = f'<link rel="stylesheet" href="{name}">'
+        if link not in html:
+            raise SystemExit(f'index.html 里找不到 {name} 的 <link>，没法内联')
+        html = html.replace(link, '<style>\n' + css + '\n</style>')
     for name in SCRIPTS:
         src = (ROOT / name).read_text(encoding='utf-8')
         if '</script' in src:

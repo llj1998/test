@@ -13,6 +13,9 @@ const { chromium } = require('playwright');
 
 const ROOT = path.resolve(__dirname, '..');
 const NOW = new Date('2026-11-02T10:30:00');
+// 细看地图的瓦片：测试里不连外网，高德和 CARTO 的请求一律回一张 1×1 的图
+const TILE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const TILE_HOSTS = /autonavi\.com|cartocdn\.com/;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json' };
 
 function serve() {
@@ -39,6 +42,7 @@ function serve() {
 
   async function newPage(width = 1440, height = 900) {
     const ctx = await browser.newContext({ viewport: { width, height } });
+    await ctx.route(TILE_HOSTS, r => r.fulfill({ status: 200, contentType: 'image/png', body: TILE }));
     const page = await ctx.newPage();
     await page.clock.setFixedTime(NOW);
     page.on('pageerror', e => errors.push(`页面报错：${e.message}`));
@@ -177,6 +181,38 @@ function serve() {
     ok((await store(page)).memories.some(m => m.note === '改过的一句话'), '回忆被改了');
   });
 
+  await step('细看地图：地点、一天的路线、按地区换底图', async () => {
+    await go(page, 'trip');
+    await page.click('.trip-tab[data-trip=kyoto]');
+    await page.click('#view-trip [data-dayroute="kyoto:2"]');
+    await page.waitForSelector('#view-map .lmap .lm-stop', { timeout: 5000 });
+    await page.waitForTimeout(400);
+    ok(await page.$$eval('#view-map .lm-pin', a => a.length) >= 15, '细看地图上画出了地点');
+    ok(await page.$$eval('#view-map .lm-stop', a => a.length) === 4, 'Day 3 的路线有 4 站');
+    ok((await page.textContent('#view-map .route-sum')).includes('公里'), '路线下面写了总距离');
+    const attr = () => page.textContent('#view-map .leaflet-control-attribution');
+    ok((await attr()).includes('CARTO'), '在京都自动用 CARTO 底图');
+    await page.click('#view-map [data-lfocus=home]');
+    await page.waitForTimeout(400);
+    ok((await attr()).includes('高德'), '回到上海自动换成高德底图');
+  });
+
+  await step('细看地图：到地图上点一下，给地点定位置', async () => {
+    await go(page, 'places');
+    await page.click('#album .slot[data-id=nanzenji] .linklike');
+    await page.click('#drawer [data-pedit=nanzenji]');
+    await page.click('#pe-form [data-pickpos=nanzenji]');
+    await page.waitForSelector('#view-map .pick-bar', { timeout: 5000 });
+    await page.waitForTimeout(400);
+    const box = await page.$eval('#view-map .lmap', el => { const r = el.getBoundingClientRect(); return { w: r.width, h: r.height }; });
+    await page.click('#view-map .lmap', { position: { x: box.w / 2 + 120, y: box.h / 2 + 80 } });
+    await page.waitForTimeout(300);
+    const p = await place(page, 'nanzenji');
+    ok(Math.abs(p.lat - 35.01) < .03 && Math.abs(p.lng - 135.79) < .03 && p.approx === false, '南禅寺的坐标换成了点的位置', JSON.stringify([p.lat, p.lng, p.approx]));
+    ok(!(await page.$('#view-map .pick-bar')), '点完以后退出选点');
+    await undo(page);
+  });
+
   await step('清空以后每一页都能打开，再载入示例', async () => {
     await go(page, 'home');
     await page.click('#view-home [data-sample=clear]');
@@ -188,7 +224,7 @@ function serve() {
     for (const v of ['home', 'places', 'trip', 'today', 'map', 'memories', 'sort', 'providers']) await go(page, v);
     await page.click('[data-sample=restore]');
     await page.waitForTimeout(300);
-    ok((await store(page)).places.length >= 24, '载入示例后有 24 处地点');
+    ok((await store(page)).places.length >= 26, '载入示例后有 26 处地点');
   });
 
   await step('手机宽度：每一页都没有横向滚动', async () => {
@@ -198,6 +234,11 @@ function serve() {
       const over = await m.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       ok(over <= 0, `手机宽度 #${v} 没有横向滚动`, over > 0 ? `多出 ${over}px` : '');
     }
+    await go(m, 'map');
+    await m.click('#view-map [data-map=detail]');
+    await m.waitForTimeout(500);
+    const over = await m.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    ok(over <= 0, '手机宽度的细看地图没有横向滚动', over > 0 ? `多出 ${over}px` : '');
   });
 
   ok(errors.length === 0, '整个过程没有脚本报错', errors.slice(0, 5).join('\n'));

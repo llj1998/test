@@ -20,6 +20,8 @@ window.DATA = {
     { id: 'arashiyama', name: '岚山竹林', city: '京都', country: '日本', area: '关西', type: '自然', want: 4, tags: ['竹林小径', '嵯峨野'], lat: 35.017, lng: 135.6713, state: 'plan', trip: 'kyoto', day: 4, art: 'bamboo', c: ['#D6E4D3', '#22503A', '#82AC8C'], added: '2026-03-14', season: [4, 11], seasonNote: '4 月樱花，11 月红叶' },
     { id: 'dotonbori', name: '道顿堀', city: '大阪', country: '日本', area: '关西', type: '城市', want: 3, tags: ['夜景', '章鱼烧'], lat: 34.6687, lng: 135.5013, state: 'plan', trip: 'kyoto', day: 1, art: 'lanterns', c: ['#25305A', '#F3C553', '#E2603F'], added: '2026-05-02', season: [], seasonNote: '全年，晚上去' },
     { id: 'sakamichi', name: '坂道咖啡', city: '京都 · 东山', country: '日本', area: '关西', type: '咖啡', want: 3, tags: ['拿铁', '八坂塔'], lat: 34.9986, lng: 135.7808, state: 'plan', trip: 'kyoto', day: 3, art: 'cup', c: ['#EBDDCB', '#56331E', '#BA875D'], added: '2026-09-21', season: [], note: '窗外就是八坂塔。', src: { from: '小红书', title: '东山 5 家看得到八坂塔的咖啡店' } },
+    { id: 'kiyomizu', name: '清水寺', city: '京都 · 东山', country: '日本', area: '关西', type: '建筑', want: 4, tags: ['清水舞台', '二年坂'], lat: 34.9949, lng: 135.785, state: 'plan', trip: 'kyoto', day: 3, art: 'arches', c: ['#F1DDD0', '#7C2A1C', '#D7774F'], added: '2026-03-14', season: [4, 11], seasonNote: '4 月樱花，11 月红叶' },
+    { id: 'eikando', name: '永观堂', city: '京都 · 左京', country: '日本', area: '关西', type: '自然', want: 5, tags: ['夜枫', '要预约'], lat: 35.0147, lng: 135.7942, state: 'plan', trip: 'kyoto', day: 3, art: 'trees', c: ['#F3D9C8', '#8A2E1A', '#D8763A'], added: '2026-09-05', season: [11], seasonNote: '秋季夜间参拜只在 11 月', note: '夜里的红叶倒映在放生池里。' },
     { id: 'nishiki', name: '锦市场', city: '京都', country: '日本', area: '关西', type: '餐馆', want: 3, tags: ['玉子烧', '逛吃'], lat: 35.005, lng: 135.7649, state: 'plan', trip: 'kyoto', day: 6, art: 'fruits', c: ['#F2E1C0', '#6E4410', '#D19A44'], added: '2026-07-12', season: [], seasonNote: '全年，上午 10 点后店才开齐' },
     { id: 'nanzenji', name: '南禅寺 · 水路阁', city: '京都', country: '日本', area: '关西', type: '建筑', want: 4, tags: ['红砖拱桥', '哲学之道'], lat: 35.0113, lng: 135.7934, state: 'want', art: 'arches', c: ['#EBDCCB', '#7A2E1C', '#D9874E'], added: '2026-10-31', season: [11, 12], seasonNote: '红叶在 11 月下旬到 12 月初', note: '红砖水路阁配红叶，秋天最好看。', src: { from: '小红书', title: '南禅寺水路阁｜京都最出片的红砖拱桥' } },
     { id: 'byodoin', name: '宇治 · 平等院', city: '宇治', country: '日本', area: '关西', type: '建筑', want: 3, tags: ['十円硬币', '抹茶'], lat: 34.8892, lng: 135.8077, state: 'want', art: 'towers', c: ['#D8E3E0', '#23463F', '#8DB2A8'], added: '2026-08-03', season: [4, 5, 11], seasonNote: '紫藤 4 月底，红叶 11 月', note: '十円硬币上的那座，顺便喝宇治抹茶。' },
@@ -66,8 +68,8 @@ window.DATA = {
         { n: 3, date: '11.22', wd: '周日', title: '东山，早起看稻荷', items: [
           { t: '06:30', kind: '景点', title: '伏见稻荷大社', note: '赶在人潮前上山，走到四之辻', place: 'fushimi' },
           { t: '10:30', kind: '咖啡', title: '坂道咖啡', note: '拿铁，窗外是八坂塔', place: 'sakamichi', go: '京阪电车 + 步行 · 约 25 分钟' },
-          { t: '13:00', kind: '景点', title: '清水寺 · 二年坂三年坂', note: '如果还在修缮，换成南禅寺', go: '步行 18 分钟' },
-          { t: '17:30', kind: '景点', title: '永观堂 · 夜枫', note: '入场 17:30，2 张', tag: ['ok', '已订'], booking: 3, go: '市巴士 5 路 · 约 25 分钟' }
+          { t: '13:00', kind: '景点', title: '清水寺 · 二年坂三年坂', note: '如果还在修缮，换成南禅寺', go: '步行 18 分钟', place: 'kiyomizu' },
+          { t: '17:30', kind: '景点', title: '永观堂 · 夜枫', note: '入场 17:30，2 张', tag: ['ok', '已订'], booking: 3, go: '市巴士 5 路 · 约 25 分钟', place: 'eikando' }
         ] },
         { n: 4, date: '11.23', wd: '周一', title: '岚山', items: [
           { t: '08:00', kind: '自然', title: '岚山竹林', note: '8 点前人少，走竹林小径', place: 'arashiyama' },
