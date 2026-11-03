@@ -1,0 +1,13 @@
+{
+  "name": "yuanfang",
+  "private": true,
+  "description": "远方清单：把零散的「想去」逐步变成真的发生过的旅行",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "test": "node tests/smoke.js",
+    "build": "python3 tools/build_single.py"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

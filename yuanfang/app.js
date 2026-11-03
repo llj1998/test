@@ -1567,11 +1567,16 @@
     if (!p) return;
     if (p.demo) { toast(`「${p.name}」是示例服务商，没有真实密钥。`); return; }
     toast(`正在连接 ${p.name}…`);
+    const base = p.base.replace(/\/+$/, ''), auth = { Authorization: `Bearer ${p.key}` };
     try {
-      const res = await fetch(p.base.replace(/\/+$/, '') + '/models', { headers: { Authorization: `Bearer ${p.key}` } });
+      let res = await fetch(base + '/models', { headers: auth });
+      // 有些兼容接口没有 /models：再用一个只要 1 个 token 的对话试一次
+      if (res.status === 404 || res.status === 405) {
+        res = await fetch(base + '/chat/completions', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: p.model, max_tokens: 1, messages: [{ role: 'user', content: '你好' }] }) });
+      }
       if (!res.ok) throw Object.assign(new Error('http'), { status: res.status });
       toast(`${p.name} 连接正常。`);
-      p.used = `${md(todayISO())} 测试通过`; save(); renderProviders();
+      if (D.providers.includes(p)) { p.used = `${md(todayISO())} 测试通过`; save(); renderProviders(); }
     } catch (e) { toast(explainErr(e)); }
   }
   function clearAll() {
@@ -1966,8 +1971,13 @@
   }
 
   let toastTimer, toastFns = {};
+  /* 有弹窗开着时，弹窗外的元素都点不了：把提示条放进最上面的那个弹窗里，「撤销」才按得到 */
+  const toastHost = () => $$('dialog[open]').pop() || document.body;
+  const TOAST = document.getElementById('toast');
   function toast(msg, { undo, action } = {}) {
-    const el = $('#toast');
+    const el = TOAST;
+    const host = toastHost();
+    if (el.parentNode !== host) host.appendChild(el);
     toastFns = { u: undo, a: action?.fn };
     el.innerHTML = `<span>${esc(msg)}</span>${action ? `<button data-ta="a">${esc(action.label)}</button>` : ''}${undo ? '<button data-ta="u">撤销</button>' : ''}`;
     el.classList.toggle('has-act', !!(undo || action));
@@ -1995,7 +2005,7 @@
     if (!el) return;
     const ds = el.dataset;
 
-    if (ds.ta) { const fn = toastFns[ds.ta]; $('#toast').classList.remove('show'); if (fn) fn(); return; }
+    if (ds.ta) { const fn = toastFns[ds.ta]; TOAST.classList.remove('show'); if (fn) fn(); return; }
     if (ds.toast) { e.preventDefault(); toast(ds.toast); return; }
     if (ds.close !== undefined && el.closest('dialog')) { el.closest('dialog').close(); if (el.tagName === 'BUTTON') return; }
     if (ds.open === 'palette') { openPalette(ds.q || ''); return; }
@@ -2422,6 +2432,7 @@
 
   window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
   window.addEventListener('storage', e => { if (e.key === STORE_KEY) location.reload(); });
+  document.addEventListener('close', e => { if (e.target.contains(TOAST)) toastHost().appendChild(TOAST); }, true);
 
   const CN = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
   const cnDay = n => (n <= 10 ? CN[n] : n < 20 ? '十' + CN[n - 10] : CN[Math.floor(n / 10)] + '十' + (n % 10 ? CN[n % 10] : ''));

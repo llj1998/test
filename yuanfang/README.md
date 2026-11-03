@@ -16,6 +16,24 @@ python3 -m http.server 8000
 
 第一次打开会载入一份示例数据（一次京都红叶行、几家上海的店），方便先看效果。准备好了，在首页顶上或「设置 → 数据」里点「清空，从零开始」。
 
+## 文档
+
+| 文档 | 给谁看 | 内容 |
+| --- | --- | --- |
+| [docs/使用指南.md](docs/使用指南.md) | 用的人 | 每个功能怎么用、适合的场景、10 个分步骤的实用示例、输入小抄、常见问题 |
+| [CLAUDE.md](CLAUDE.md) | 改代码的人和 Claude Code | 架构、数据模型、必须遵守的约定、常见改动怎么做、设计系统、已知的坑 |
+
+## 开发
+
+```bash
+npm install                      # 第一次：装 playwright
+npx playwright install chromium  # 第一次：装浏览器
+npm test                         # 冒烟测试，把主要流程走一遍（页面时间固定在 2026-11-02）
+npm run build                    # 打包成单文件 dist/远方清单.html，双击就能打开
+```
+
+用 Claude Code 接着改：在仓库根目录或 `yuanfang/` 里启动 `claude`，它会自动读到 `CLAUDE.md`。改完让它跑一遍 `npm test`。
+
 ## 它到底要解决什么
 
 想去的地方从来不缺，缺的是一步步把它变成真的出发。所以这个网站不是收藏夹，它关心的是「下一步做什么」：
@@ -68,11 +86,16 @@ python3 -m http.server 8000
 ## 文件
 
 ```
-index.html   页面骨架、导航、浮层容器、邮戳与印章的 SVG 滤镜
-styles.css   全部样式；配色、字体等设计令牌在文件开头，含深色模式
-app.js       全部逻辑：存储、推算、渲染、AI 调用与合并；邮票图案和邮戳都是代码画的 SVG
-data.js      示例数据（也是数据结构的参考）
-world.js     世界陆地轮廓（Natural Earth 110m，经 world-atlas，已预先投影）
+index.html              页面骨架、导航、浮层容器、邮戳与印章的 SVG 滤镜
+styles.css              全部样式；配色、字体等设计令牌在文件开头，含深色模式
+app.js                  全部逻辑：存储、推算、渲染、AI 调用与合并；邮票图案和邮戳都是代码画的 SVG
+data.js                 示例数据（也是数据结构的参考）
+world.js                世界陆地轮廓（Natural Earth 110m，经 world-atlas，已预先投影）
+tests/smoke.js          冒烟测试
+tools/build_single.py   打包单文件
+tools/build_world.py    重新生成 world.js
+docs/使用指南.md        功能、场景和示例
+CLAUDE.md               开发说明
 ```
 
 ## 以后可以接着做
